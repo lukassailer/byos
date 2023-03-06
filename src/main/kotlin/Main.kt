@@ -1,7 +1,15 @@
-fun main(args: Array<String>) {
-    println("Hello World!")
+import db.jooq.generated.tables.Student.STUDENT
+import org.jooq.impl.DSL
 
-    // Try adding program arguments via Run/Debug configuration.
-    // Learn more about running applications: https://www.jetbrains.com/help/idea/running-applications.html.
-    println("Program arguments: ${args.joinToString()}")
+fun main(args: Array<String>) {
+    val userName = "postgres"
+    val password = ""
+    val url = "jdbc:postgresql://localhost:5432/byos"
+
+    DSL.using(url, userName, password).use { ctx ->
+        ctx.select(STUDENT.NAME, STUDENT.AGE)
+            .from(STUDENT)
+            .fetch()
+            .forEach { println("${it[STUDENT.NAME]} is ${it[STUDENT.AGE]} years old") }
+    }
 }
