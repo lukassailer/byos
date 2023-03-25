@@ -1,32 +1,32 @@
 package com.example.byos
 
-import db.jooq.generated.Tables.BOOKS
+import com.fasterxml.jackson.databind.ObjectMapper
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.jooq.impl.DSL
+import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import java.util.stream.Collectors
 
 @Component
 class GraphiQLFilter : OncePerRequestFilter() {
+
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
-        if (request.servletPath == "/graphql") {
-
-            val userName = "postgres"
-            val password = ""
-            val url = "jdbc:postgresql://localhost:5432/byos_schema_names"
-
-            val books = DSL.using(url, userName, password).use { ctx ->
-                ctx.select(BOOKS.TITLE)
-                    .from(BOOKS)
-                    .fetch()
-                    .map { it[BOOKS.TITLE] }
-            }
-
-            response.writer.write("""{"data": [{"request": "${request}"}, {"books": "${books}"}]}""")
+        val query = getQueryFromRequest(request)
+        if (!query.isNullOrBlank()) {
+            // TODO obtain response from query
+            println(query)
+            response.contentType = MediaType.APPLICATION_JSON_VALUE
+            response.writer.write("""{"data": "Hello World"}""")
             return
         }
         filterChain.doFilter(request, response)
+    }
+
+    private fun getQueryFromRequest(request: HttpServletRequest): String? {
+        val requestBody = request.reader.lines().collect(Collectors.joining())
+        val jsonNode = ObjectMapper().readTree(requestBody)
+        return jsonNode["query"]?.textValue()
     }
 }
