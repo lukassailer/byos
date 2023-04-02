@@ -1,9 +1,7 @@
 package com.example.byos
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import graphql.language.Field
 import graphql.language.OperationDefinition
-import graphql.language.SelectionSet
 import graphql.parser.Parser
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
@@ -19,7 +17,10 @@ class GraphiQLFilter : OncePerRequestFilter() {
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
         val query = getQueryFromRequest(request)
         if (!query.isNullOrBlank()) {
-            val result = resolveQuery(query)
+            val ast = parseASTFromQuery(query)
+            val tree = buildTree(ast)
+            // TODO execute after building tree
+
             response.contentType = MediaType.APPLICATION_JSON_VALUE
             response.writer.write("""{"data": "Hello World"}""")
             return
@@ -34,25 +35,8 @@ class GraphiQLFilter : OncePerRequestFilter() {
     }
 }
 
-fun resolveQuery(query: String): String {
+fun parseASTFromQuery(query: String): OperationDefinition {
     val parser = Parser()
     val document = parser.parseDocument(query)
-    val queryDefinition = document.definitions[0] as OperationDefinition
-
-    var selectionSets = listOf(queryDefinition.selectionSet)
-    while (selectionSets.isNotEmpty()) {
-        selectionSets = selectionSets.flatMap { getSubFields(it) }
-    }
-
-    return "Hello World"
-}
-
-fun getSubFields(selectionSet: SelectionSet): List<SelectionSet> {
-    val selections = selectionSet.selections
-    return selections.mapNotNull { selection ->
-        val result = (selection as Field).selectionSet
-        println(selection.name)
-        result ?: println("(attribute)")
-        result
-    }
+    return document.definitions[0] as OperationDefinition
 }

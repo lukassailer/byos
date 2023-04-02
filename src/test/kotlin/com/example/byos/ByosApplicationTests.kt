@@ -17,7 +17,7 @@ class ByosApplicationTests {
     fun graphQLTest() {
         val query = """
             query {
-              allAuthors {
+              authors {
                 lastName
                 books {
                   name
