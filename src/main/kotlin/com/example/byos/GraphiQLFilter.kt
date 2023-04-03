@@ -6,6 +6,7 @@ import graphql.parser.Parser
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.jooq.impl.DSL
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
@@ -19,7 +20,10 @@ class GraphiQLFilter : OncePerRequestFilter() {
         if (!query.isNullOrBlank()) {
             val ast = parseASTFromQuery(query)
             val tree = buildTree(ast)
-            // TODO execute after building tree
+            val result = DSL.using(url, userName, password).use { ctx ->
+                ctx.selectFrom(resolveTree(tree)).fetch()
+            }
+            println(result)
 
             response.contentType = MediaType.APPLICATION_JSON_VALUE
             response.writer.write("""{"data": "Hello World"}""")
