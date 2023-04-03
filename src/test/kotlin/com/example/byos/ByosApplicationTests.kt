@@ -1,5 +1,7 @@
 package com.example.byos
 
+import graphql.language.Field
+import graphql.language.OperationDefinition
 import graphql.parser.Parser
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
@@ -15,18 +17,42 @@ class ByosApplicationTests {
     fun graphQLTest() {
         val query = """
             query {
-              allAuthors {
+              authors {
                 lastName
                 books {
                   name
                 }
               }
             }
-        """.trimIndent()
+        """
 
         val parser = Parser()
         val document = parser.parseDocument(query)
-        println(document)
+        val queryDefinition = document.definitions[0] as OperationDefinition
+        val selectionSet = queryDefinition.selectionSet
+        val selections = selectionSet.selections
+        selections.forEach { selection ->
+            val field = selection as Field
+            println(field.name)
+
+            val subSelectionSet = field.selectionSet
+            if (subSelectionSet != null) {
+                val subSelections = subSelectionSet.selections
+                subSelections.forEach { subSelection ->
+                    val subField = subSelection as Field
+                    println(subField.name)
+
+                    val subSubSelectionSet = subField.selectionSet
+                    if (subSubSelectionSet != null) {
+                        val subSubSelections = subSubSelectionSet.selections
+                        subSubSelections.forEach { subSubSelection ->
+                            val subSubField = subSubSelection as Field
+                            println(subSubField.name)
+                        }
+                    }
+                }
+            }
+        }
 
 //        Document {
 //            definitions = [OperationDefinition {
