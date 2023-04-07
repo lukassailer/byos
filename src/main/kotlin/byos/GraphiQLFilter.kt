@@ -1,4 +1,4 @@
-package com.example.byos
+package byos
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import graphql.ExecutionInput
@@ -12,7 +12,6 @@ import graphql.schema.idl.SchemaParser
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.jooq.impl.DSL
 import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
@@ -46,7 +45,7 @@ class GraphiQLFilter : OncePerRequestFilter() {
         }
 
         val tree = buildTree(ast)
-        val result = DSL.using(url, userName, password).use { ctx ->
+        val result = executeJooqQuery { ctx ->
             ctx.selectFrom(resolveTree(tree)).fetch()
         }
         println(result)

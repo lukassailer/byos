@@ -1,4 +1,4 @@
-package com.example.byos
+package byos
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

@@ -1,4 +1,4 @@
-package com.example.byos
+package byos
 
 import db.jooq.generated.Tables.AUTHORS
 import db.jooq.generated.Tables.BOOKS
@@ -14,11 +14,6 @@ sealed interface QueryNode {
     data class Relation(val value: String, val children: List<QueryNode>) : QueryNode
     data class Attribute(val value: String) : QueryNode
 }
-
-val userName = "postgres"
-val password = ""
-val url = "jdbc:postgresql://localhost:5432/byos_schema_names"
-
 
 fun buildTree(queryDefinition: OperationDefinition): QueryNode.Relation =
     getOperationTree(queryDefinition.selectionSet)[0] as QueryNode.Relation
