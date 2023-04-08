@@ -46,7 +46,7 @@ class GraphiQLFilter : OncePerRequestFilter() {
 
         val tree = buildTree(ast)
         val result = executeJooqQuery { ctx ->
-            ctx.selectFrom(resolveTree(tree)).fetch()
+            ctx.select(resolveTree(tree)).fetch()
         }
         println(result)
         response.writer.write(result.formatJSON())

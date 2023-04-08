@@ -7,7 +7,7 @@ import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import org.jooq.Condition
 import org.jooq.Record
-import org.jooq.Select
+import org.jooq.Result
 import org.jooq.impl.DSL
 
 sealed interface QueryNode {
@@ -28,20 +28,20 @@ private fun getOperationTree(selectionSet: SelectionSet): List<QueryNode> =
         }
     }
 
-fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondition()): Select<Record> {
+fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondition()): org.jooq.Field<Result<Record>> {
     val (relations, attributes) = relation.children.partition { it is QueryNode.Relation }
     val attributeNames = attributes.map { (it as QueryNode.Attribute).value }.map { DSL.field(it) }
 
     val newCond = DSL.condition(BOOKS.AUTHORID.eq(AUTHORS.ID))
 
     val subSelects = relations.map {
-        DSL.multiset(
-            resolveTree(it as QueryNode.Relation, newCond)
-        ).`as`(it.value)
+        resolveTree(it as QueryNode.Relation, newCond)
     }
 
-    return DSL.select(attributeNames)
-        .select(subSelects)
-        .from(relation.value)
-        .where(condition)
+    return DSL.multiset(
+        DSL.select(attributeNames)
+            .select(subSelects)
+            .from(relation.value)
+            .where(condition)
+    ).`as`(relation.value)
 }
