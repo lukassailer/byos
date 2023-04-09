@@ -8,7 +8,7 @@ type Query {
 type Book {
     id: ID
     title: String
-    pageCount: Int
+    publishedin: Int
     # author: Author
     authors: [Author] # for now all fields that reference other types are collections
 }

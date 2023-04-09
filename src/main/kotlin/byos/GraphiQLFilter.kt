@@ -49,7 +49,7 @@ class GraphiQLFilter : OncePerRequestFilter() {
             ctx.select(resolveTree(tree)).fetch()
         }
         println(result)
-        response.writer.write(result.formatJSON())
+        response.writer.write(result.formatGraphQLResponse())
     }
 
     private fun getQueryFromRequest(request: HttpServletRequest): String? {

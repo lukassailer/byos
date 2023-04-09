@@ -2,13 +2,14 @@ package byos
 
 import db.jooq.generated.Tables.AUTHORS
 import db.jooq.generated.Tables.BOOKS
-import graphql.language.Field
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import org.jooq.Condition
+import org.jooq.Field
 import org.jooq.Record
 import org.jooq.Result
 import org.jooq.impl.DSL
+import graphql.language.Field as GraphQLField
 
 sealed interface QueryNode {
     data class Relation(val value: String, val children: List<QueryNode>) : QueryNode
@@ -20,7 +21,7 @@ fun buildTree(queryDefinition: OperationDefinition): QueryNode.Relation =
 
 private fun getOperationTree(selectionSet: SelectionSet): List<QueryNode> =
     selectionSet.selections.mapNotNull { selection ->
-        val subSelectionSet = (selection as Field).selectionSet
+        val subSelectionSet = (selection as GraphQLField).selectionSet
         if (subSelectionSet == null) {
             QueryNode.Attribute(selection.name)
         } else {
@@ -28,7 +29,7 @@ private fun getOperationTree(selectionSet: SelectionSet): List<QueryNode> =
         }
     }
 
-fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondition()): org.jooq.Field<Result<Record>> {
+fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondition()): Field<Result<Record>> {
     val (relations, attributes) = relation.children.partition { it is QueryNode.Relation }
     val attributeNames = attributes.map { (it as QueryNode.Attribute).value }.map { DSL.field(it) }
 
