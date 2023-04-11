@@ -1,7 +1,5 @@
 package byos
 
-import db.jooq.generated.Tables.AUTHORS
-import db.jooq.generated.Tables.BOOKS
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import org.jooq.Condition
@@ -33,10 +31,9 @@ fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondi
     val (relations, attributes) = relation.children.partition { it is QueryNode.Relation }
     val attributeNames = attributes.map { (it as QueryNode.Attribute).value }.map { DSL.field(it) }
 
-    val newCond = DSL.condition(BOOKS.AUTHORID.eq(AUTHORS.ID))
-
     val subSelects = relations.map {
-        resolveTree(it as QueryNode.Relation, newCond)
+        val whereCondition = WhereCondition.getFor(relation.value, (it as QueryNode.Relation).value)
+        resolveTree(it, whereCondition)
     }
 
     return DSL.multiset(
