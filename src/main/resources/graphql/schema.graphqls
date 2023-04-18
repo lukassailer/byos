@@ -3,14 +3,19 @@ type Query {
     authorById(id: ID): Author
     authors: [Author]
     books: [Book]
+    test: Test
+}
+
+type Test {
+    value: String
 }
 
 type Book {
     id: ID
     title: String
     publishedin: Int
-    # author: Author
-    authors: [Author] # for now all fields that reference other types are collections
+    author: Author
+    authors: [Author] # for now
 }
 
 type Author {

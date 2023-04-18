@@ -2,23 +2,12 @@ package byos
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
-import graphql.schema.GraphQLList
-import graphql.schema.GraphQLObjectType
-import graphql.schema.GraphQLType
-import graphql.schema.idl.RuntimeWiring
-import graphql.schema.idl.SchemaGenerator
-import graphql.schema.idl.SchemaParser
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
-import java.io.File
 
 @SpringBootTest
 class ByosApplicationTest {
-
-    @Test
-    fun contextLoads() {
-    }
 
     @Test
     fun `simple query`() {
@@ -123,25 +112,35 @@ class ByosApplicationTest {
         assertEqualsIgnoringOrder(expectedResult, result)
     }
 
-    // NOTE: [Author]! is considered an object, not an array
     @Test
-    fun introspection() {
-        val schemaFile = File("src/main/resources/graphql/schema.graphqls")
-        val schema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
-        val typeMap: Map<String, GraphQLType> = schema.typeMap
+    fun `query returning object`() {
+        val query = """
+            query {
+              test {
+                value
+              }
+            }  
+        """
 
-        for ((name, type) in typeMap) {
-            println("$name:")
-            if (type is GraphQLObjectType) {
-                for (field in type.fieldDefinitions) {
-                    if (field.type is GraphQLList) {
-                        println("Field " + field.name + " returns an array")
-                    } else {
-                        println("Field " + field.name + " returns an object")
-                    }
+        val ast = parseASTFromQuery(query)
+        val tree = buildTree(ast)
+        val result = executeJooqQuery { ctx ->
+            ctx.select(resolveTree(tree)).fetch()
+        }.formatGraphQLResponse()
+
+        println(result)
+
+        val expectedResult = """
+            {
+              "data": {
+                "test": {
+                  "value": "test"
                 }
+              }
             }
-        }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
     }
 
     fun assertEqualsIgnoringOrder(expected: String, actual: String) {
