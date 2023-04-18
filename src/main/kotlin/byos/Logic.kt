@@ -34,7 +34,9 @@ private fun getOperationTree(selectionSet: SelectionSet): List<QueryNode> =
             val schemaFile = File("src/main/resources/graphql/schema.graphqls")
             val schema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
 
-            QueryNode.Relation(selection.name, getOperationTree(subSelectionSet), isFieldListType(schema, selection.name))
+            val fieldTypeInfo = getFieldTypeInfo(schema, selection.name)
+
+            QueryNode.Relation(fieldTypeInfo.typeName, getOperationTree(subSelectionSet), fieldTypeInfo.isList)
         }
     }
 
@@ -55,7 +57,7 @@ fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondi
     ).`as`(relation.value + if (relation.isList) "" else "-singleton")
 }
 
-fun isFieldListType(schema: GraphQLSchema, fieldName: String): Boolean {
+fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String): FieldTypeInfo {
     // The type could also be deducted from the position in the tree in the future
     val allTypes = schema.allTypesAsList
     for (type in allTypes) {
@@ -63,14 +65,24 @@ fun isFieldListType(schema: GraphQLSchema, fieldName: String): Boolean {
         if (type is GraphQLObjectType) {
             val fieldDef = type.getFieldDefinition(fieldName)
             if (fieldDef != null) {
-                println(fieldDef.type)
                 return when (val fieldType = fieldDef.type) {
-                    is GraphQLList -> true
-                    is GraphQLNonNull -> fieldType.wrappedType is GraphQLList
-                    else -> false
+                    // nested lists are not supported
+                    is GraphQLList -> FieldTypeInfo((fieldType.wrappedType as GraphQLObjectType).name, true)
+                    is GraphQLNonNull -> {
+                        when (val wrappedType = fieldType.wrappedType) {
+                            is GraphQLList -> FieldTypeInfo((wrappedType.wrappedType as GraphQLObjectType).name, true)
+                            is GraphQLObjectType -> FieldTypeInfo(wrappedType.name, false)
+                            else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedType'")
+                        }
+                    }
+
+                    is GraphQLObjectType -> FieldTypeInfo(fieldType.name, false)
+                    else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$fieldType'")
                 }
             }
         }
     }
     throw IllegalArgumentException("Field '$fieldName' not found in schema")
 }
+
+data class FieldTypeInfo(val typeName: String, val isList: Boolean)
