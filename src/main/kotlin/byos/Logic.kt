@@ -18,8 +18,8 @@ import java.io.File
 import graphql.language.Field as GraphQLField
 
 sealed interface QueryNode {
-    data class Relation(val value: String, val children: List<QueryNode>, val isList: Boolean) : QueryNode
-    data class Attribute(val value: String) : QueryNode
+    data class Relation(val title: String, val children: List<QueryNode>, val fieldTypeInfo: FieldTypeInfo) : QueryNode
+    data class Attribute(val title: String) : QueryNode
 }
 
 fun buildTree(queryDefinition: OperationDefinition): QueryNode.Relation =
@@ -36,25 +36,25 @@ private fun getOperationTree(selectionSet: SelectionSet): List<QueryNode> =
 
             val fieldTypeInfo = getFieldTypeInfo(schema, selection.name)
 
-            QueryNode.Relation(fieldTypeInfo.typeName, getOperationTree(subSelectionSet), fieldTypeInfo.isList)
+            QueryNode.Relation(selection.name, getOperationTree(subSelectionSet), fieldTypeInfo)
         }
     }
 
 fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondition()): Field<Result<Record>> {
     val (relations, attributes) = relation.children.partition { it is QueryNode.Relation }
-    val attributeNames = attributes.map { (it as QueryNode.Attribute).value }.map { DSL.field(it) }
+    val attributeNames = attributes.map { (it as QueryNode.Attribute).title }.map { DSL.field(it) }
 
     val subSelects = relations.map {
-        val whereCondition = WhereCondition.getFor(relation.value, (it as QueryNode.Relation).value)
+        val whereCondition = WhereCondition.getFor(relation.fieldTypeInfo.relationName, (it as QueryNode.Relation).fieldTypeInfo.relationName)
         resolveTree(it, whereCondition)
     }
 
     return DSL.multiset(
         DSL.select(attributeNames)
             .select(subSelects)
-            .from(relation.value)
+            .from(relation.fieldTypeInfo.relationName)
             .where(condition)
-    ).`as`(relation.value + if (relation.isList) "" else "-singleton")
+    ).`as`(relation.title + if (relation.fieldTypeInfo.isList) "" else "-singleton")
 }
 
 fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String): FieldTypeInfo {
@@ -85,4 +85,6 @@ fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String): FieldTypeInfo {
     throw IllegalArgumentException("Field '$fieldName' not found in schema")
 }
 
-data class FieldTypeInfo(val typeName: String, val isList: Boolean)
+data class FieldTypeInfo(private val _relationName: String, val isList: Boolean) {
+    val relationName = _relationName.lowercase()
+}

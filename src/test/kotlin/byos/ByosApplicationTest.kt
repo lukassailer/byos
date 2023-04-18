@@ -128,8 +128,6 @@ class ByosApplicationTest {
             ctx.select(resolveTree(tree)).fetch()
         }.formatGraphQLResponse()
 
-        println(result)
-
         val expectedResult = """
             {
               "data": {
