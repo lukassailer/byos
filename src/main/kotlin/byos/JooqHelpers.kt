@@ -68,6 +68,9 @@ fun unwrapSingletonArraysRecursively(node: JsonNode) {
         objNode.fieldNames().forEach { fieldName ->
             val fieldNode = objNode.get(fieldName)
             if (fieldName.endsWith("-singleton") && fieldNode.isArray) {
+                if (fieldNode.size() != 1) {
+                    error("Expected singleton array, got ${fieldNode.size()} elements")
+                }
                 val singletonArray = fieldNode.elements().next()
                 objNode.set<JsonNode>(fieldName.substringBeforeLast("-singleton"), singletonArray)
                 objNode.remove(fieldName)
