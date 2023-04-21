@@ -4,6 +4,8 @@ type Query {
     authors: [Author]
     books: [Book]
     test: Test
+    orders: [XOrder]
+    users: [XUser]
 }
 
 type Test {
@@ -23,4 +25,18 @@ type Author {
     lastName: String
     books: [Book]
     distinguished: Boolean
+}
+
+type XUser {
+    user_id: Int
+    username: String
+    email: String
+    orders: [XOrder]
+}
+
+type XOrder {
+    order_id: Int
+    order_number: String
+    user: XUser
+    order_date: String
 }

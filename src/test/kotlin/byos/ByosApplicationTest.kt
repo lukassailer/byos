@@ -141,6 +141,60 @@ class ByosApplicationTest {
         assertEqualsIgnoringOrder(expectedResult, result)
     }
 
+    @Test
+    fun `query returning null`() {
+        val query = """
+            query {
+              orders {
+                order_id
+                user {
+                  user_id
+                }
+              }
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val tree = buildTree(ast)
+        val result = executeJooqQuery { ctx ->
+            ctx.select(resolveTree(tree)).fetch()
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "orders": [
+                  {
+                    "order_id": 1,
+                    "user": null
+                  },
+                  {
+                    "order_id": 2,
+                    "user": {
+                      "user_id": 1
+                    }
+                  },
+                  {
+                    "order_id": 3,
+                    "user": {
+                      "user_id": 1
+                    }
+                  },
+                  {
+                    "order_id": 4,
+                    "user": {
+                      "user_id": 2
+                    }
+                  }
+                ]
+              }
+            }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
+    }
+
+
     fun assertEqualsIgnoringOrder(expected: String, actual: String) {
         val mapper = ObjectMapper()
         val expectedJson = mapper.readTree(expected)

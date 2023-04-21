@@ -2,12 +2,15 @@ package byos
 
 import db.jooq.generated.Tables.AUTHOR
 import db.jooq.generated.Tables.BOOK
+import db.jooq.generated.Tables.XORDER
+import db.jooq.generated.Tables.XUSER
 import org.jooq.Condition
 import org.jooq.impl.DSL
 
 object WhereCondition {
     private val allConditions = mapOf(
         StringPair(BOOK.name, AUTHOR.name) to DSL.condition(BOOK.AUTHORID.eq(AUTHOR.ID)),
+        StringPair(XUSER.name, XORDER.name) to DSL.condition(XUSER.USER_ID.eq(XORDER.USER_ID)),
     )
 
     fun getFor(table1: String, table2: String): Condition {
