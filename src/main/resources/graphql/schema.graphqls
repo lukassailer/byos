@@ -3,14 +3,20 @@ type Query {
     authorById(id: ID): Author
     authors: [Author]
     books: [Book]
+    test: Test
+    orders: [XOrder]
+    users: [XUser]
+}
+
+type Test {
+    value: String
 }
 
 type Book {
     id: ID
     title: String
     publishedin: Int
-    # author: Author
-    authors: [Author] # for now all fields that reference other types are collections
+    author: Author
 }
 
 type Author {
@@ -19,4 +25,18 @@ type Author {
     lastName: String
     books: [Book]
     distinguished: Boolean
+}
+
+type XUser {
+    user_id: Int
+    username: String
+    email: String
+    orders: [XOrder]
+}
+
+type XOrder {
+    order_id: Int
+    order_number: String
+    user: XUser
+    order_date: String
 }
