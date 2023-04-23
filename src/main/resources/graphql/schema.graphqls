@@ -4,8 +4,9 @@ type Query {
     authors: [Author]
     books: [Book]
     test: Test
-    orders: [XOrder]
-    users: [XUser]
+    orders: [ShopOrder]
+    users: [ShopUser]
+    trees: [Tree]
 }
 
 type Test {
@@ -27,16 +28,23 @@ type Author {
     distinguished: Boolean
 }
 
-type XUser {
-    user_id: Int
+type ShopUser {
+    user_id: ID
     username: String
     email: String
-    orders: [XOrder]
+    orders: [ShopOrder]
 }
 
-type XOrder {
-    order_id: Int
+type ShopOrder {
+    order_id: ID
     order_number: String
-    user: XUser
+    user: ShopUser
     order_date: String
+}
+
+type Tree {
+    id: ID!
+    label: String!
+    parent: Tree
+    children: [Tree!]!
 }

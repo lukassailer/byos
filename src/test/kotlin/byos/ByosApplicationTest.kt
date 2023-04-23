@@ -194,6 +194,106 @@ class ByosApplicationTest {
         assertEqualsIgnoringOrder(expectedResult, result)
     }
 
+    fun `query with self-relation`() {
+        /*
+               A
+             /   \
+            B     C
+           / \   /
+          D   E F
+
+         */
+        val query = """
+            query {
+              trees {
+                label
+                parent {
+                  label
+                }
+                children {
+                  label
+                }
+              }
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val tree = buildTree(ast)
+        val result = executeJooqQuery { ctx ->
+            ctx.select(resolveTree(tree)).fetch()
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "trees": [
+                  {
+                    "label": "A",
+                    "parent": null,
+                    "children": [
+                      {
+                        "label": "B"
+                      },
+                      {
+                        "label": "C"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "B",
+                    "parent": {
+                      "label": "A"
+                    },
+                    "children": [
+                      {
+                        "label": "D"
+                      },
+                      {
+                        "label": "E"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "C",
+                    "parent": {
+                      "label": "A"
+                    },
+                    "children": [
+                      {
+                        "label": "F"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "D",
+                    "parent": {
+                      "label": "B"
+                    },
+                    "children": []
+                  },
+                  {
+                    "label": "E",
+                    "parent": {
+                      "label": "B"
+                    },
+                    "children": []
+                  },
+                  {
+                    "label": "F",
+                    "parent": {
+                      "label": "C"
+                    },
+                    "children": []
+                  }
+                ]
+              }
+            }
+            """
+
+        println(result)
+        assertEqualsIgnoringOrder(expectedResult, result)
+    }
+
 
     fun assertEqualsIgnoringOrder(expected: String, actual: String) {
         val mapper = ObjectMapper()
