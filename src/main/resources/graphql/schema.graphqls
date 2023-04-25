@@ -1,12 +1,10 @@
 type Query {
-    bookById(id: ID): Book
-    authorById(id: ID): Author
-    authors: [Author]
-    books: [Book]
+    allAuthors: [Author]
+    allBooks: [Book]
     test: Test
-    orders: [ShopOrder]
-    users: [ShopUser]
-    trees: [Tree]
+    allOrders: [ShopOrder]
+    allUsers: [ShopUser]
+    allTrees: [Tree]
 }
 
 type Test {

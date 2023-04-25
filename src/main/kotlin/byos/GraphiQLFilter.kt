@@ -44,9 +44,9 @@ class GraphiQLFilter : OncePerRequestFilter() {
             return
         }
 
-        val tree = buildTree(ast)
+        val tree = buildInternalQueryTree(ast)
         val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+            ctx.select(resolveInternalQueryTree(tree)).fetch()
         }
         println(result)
         response.writer.write(result.formatGraphQLResponse())

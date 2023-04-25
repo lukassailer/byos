@@ -12,7 +12,7 @@ object WhereCondition {
     private val allConditions = mapOf(
         StringPair(BOOK.name, AUTHOR.name) to DSL.condition(BOOK.AUTHORID.eq(AUTHOR.ID)),
         StringPair(SHOPUSER.name, SHOPORDER.name) to DSL.condition(SHOPUSER.USER_ID.eq(SHOPORDER.USER_ID)),
-        StringPair(TREE.name, TREE.name) to DSL.condition(TREE.ID.eq(TREE.PARENT_ID)),
+        StringPair(TREE.name, TREE.name) to DSL.condition(TREE.ID.eq(TREE.PARENT_ID)), // TODO: problem! no alias
     )
 
     fun getFor(table1: String, table2: String): Condition {

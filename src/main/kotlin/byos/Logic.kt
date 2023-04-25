@@ -17,36 +17,35 @@ import org.jooq.impl.DSL
 import java.io.File
 import graphql.language.Field as GraphQLField
 
-sealed interface QueryNode {
-    data class Relation(val title: String, val children: List<QueryNode>, val fieldTypeInfo: FieldTypeInfo) : QueryNode
-    data class Attribute(val title: String) : QueryNode
+private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
+private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
+
+sealed interface InternalQueryNode {
+    data class Relation(val title: String, val children: List<InternalQueryNode>, val fieldTypeInfo: FieldTypeInfo) : InternalQueryNode
+    data class Attribute(val title: String) : InternalQueryNode
 }
 
-fun buildTree(queryDefinition: OperationDefinition): QueryNode.Relation =
-    getOperationTree(queryDefinition.selectionSet)[0] as QueryNode.Relation
+fun buildInternalQueryTree(queryDefinition: OperationDefinition): InternalQueryNode.Relation =
+    getChildrenFromSelectionSet(queryDefinition.selectionSet)[0] as InternalQueryNode.Relation
 
-private fun getOperationTree(selectionSet: SelectionSet): List<QueryNode> =
+private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<InternalQueryNode> =
     selectionSet.selections.mapNotNull { selection ->
         val subSelectionSet = (selection as GraphQLField).selectionSet
         if (subSelectionSet == null) {
-            QueryNode.Attribute(selection.name)
+            InternalQueryNode.Attribute(selection.name)
         } else {
-            val schemaFile = File("src/main/resources/graphql/schema.graphqls")
-            val schema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
-
             val fieldTypeInfo = getFieldTypeInfo(schema, selection.name)
-
-            QueryNode.Relation(selection.name, getOperationTree(subSelectionSet), fieldTypeInfo)
+            InternalQueryNode.Relation(selection.name, getChildrenFromSelectionSet(subSelectionSet), fieldTypeInfo)
         }
     }
 
-fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondition()): Field<Result<Record>> {
-    val (relations, attributes) = relation.children.partition { it is QueryNode.Relation }
-    val attributeNames = attributes.map { (it as QueryNode.Attribute).title }.map { DSL.field(it) }
+fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Condition = DSL.noCondition()): Field<Result<Record>> {
+    val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
+    val attributeNames = attributes.map { (it as InternalQueryNode.Attribute).title }.map { DSL.field(it) }
 
     val subSelects = relations.map {
-        val whereCondition = WhereCondition.getFor(relation.fieldTypeInfo.relationName, (it as QueryNode.Relation).fieldTypeInfo.relationName)
-        resolveTree(it, whereCondition)
+        val whereCondition = WhereCondition.getFor(relation.fieldTypeInfo.relationName, (it as InternalQueryNode.Relation).fieldTypeInfo.relationName)
+        resolveInternalQueryTree(it, whereCondition)
     }
 
     return DSL.multiset(
@@ -54,30 +53,46 @@ fun resolveTree(relation: QueryNode.Relation, condition: Condition = DSL.noCondi
             .select(subSelects)
             .from(relation.fieldTypeInfo.relationName)
             .where(condition)
-    ).`as`(relation.title + if (relation.fieldTypeInfo.isList) "" else "-singleton")
+    ).`as`(relation.title + if (relation.fieldTypeInfo.isList) "" else OBJECT_SUFFIX)
 }
 
 fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String): FieldTypeInfo {
-    // The type could also be deducted from the position in the tree in the future
+    // TODO: search only on specific type
     val allTypes = schema.allTypesAsList
     for (type in allTypes) {
         // Interface, Union, Scalar, Enum, InputObject are not supported
-        if (type is GraphQLObjectType) {
-            val fieldDef = type.getFieldDefinition(fieldName)
-            if (fieldDef != null) {
-                return when (val fieldType = fieldDef.type) {
-                    // nested lists are not supported
-                    is GraphQLList -> FieldTypeInfo((fieldType.wrappedType as GraphQLObjectType).name, true)
-                    is GraphQLNonNull -> {
-                        when (val wrappedType = fieldType.wrappedType) {
-                            is GraphQLList -> FieldTypeInfo((wrappedType.wrappedType as GraphQLObjectType).name, true)
-                            is GraphQLObjectType -> FieldTypeInfo(wrappedType.name, false)
-                            else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedType'")
+        when (type) {
+            is GraphQLObjectType -> {
+                val fieldDef = type.getFieldDefinition(fieldName)
+                if (fieldDef != null) {
+                    return when (val fieldType = fieldDef.type) {
+                        // nested lists are not supported
+                        is GraphQLList -> {
+                            when (val wrappedType = fieldType.wrappedType) {
+                                is GraphQLObjectType -> FieldTypeInfo(wrappedType.name, true)
+                                is GraphQLNonNull -> FieldTypeInfo((wrappedType.wrappedType as GraphQLObjectType).name, true)
+                                else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedType'")
+                            }
                         }
-                    }
 
-                    is GraphQLObjectType -> FieldTypeInfo(fieldType.name, false)
-                    else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$fieldType'")
+                        is GraphQLNonNull -> {
+                            when (val wrappedType = fieldType.wrappedType) {
+                                is GraphQLList -> {
+                                    when (val wrappedWrappedType = wrappedType.wrappedType) {
+                                        is GraphQLObjectType -> FieldTypeInfo(wrappedWrappedType.name, true)
+                                        is GraphQLNonNull -> FieldTypeInfo((wrappedWrappedType.wrappedType as GraphQLObjectType).name, true)
+                                        else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedWrappedType'")
+                                    }
+                                }
+
+                                is GraphQLObjectType -> FieldTypeInfo(wrappedType.name, false)
+                                else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedType'")
+                            }
+                        }
+
+                        is GraphQLObjectType -> FieldTypeInfo(fieldType.name, false)
+                        else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$fieldType'")
+                    }
                 }
             }
         }

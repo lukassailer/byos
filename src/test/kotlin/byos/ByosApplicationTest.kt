@@ -1,8 +1,5 @@
 package byos
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
@@ -13,7 +10,7 @@ class ByosApplicationTest {
     fun `simple query`() {
         val query = """
             query {
-              books {
+              allBooks {
                 id
                 title
                 publishedin
@@ -22,15 +19,15 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
+        val tree = buildInternalQueryTree(ast)
         val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+            ctx.select(resolveInternalQueryTree(tree)).fetch()
         }.formatGraphQLResponse()
 
         val expectedResult = """
             {
               "data": {
-                "books": [
+                "allBooks": [
                   {
                     "id": 1,
                     "title": "1984",
@@ -63,7 +60,7 @@ class ByosApplicationTest {
     fun `simple query with more depth`() {
         val query = """
             query {
-              authors {
+              allAuthors {
                 lastName
                 books {
                   title
@@ -73,15 +70,15 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
+        val tree = buildInternalQueryTree(ast)
         val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+            ctx.select(resolveInternalQueryTree(tree)).fetch()
         }.formatGraphQLResponse()
 
         val expectedResult = """
             {
               "data": {
-                "authors": [
+                "allAuthors": [
                   {
                     "lastName": "Orwell",
                     "books": [
@@ -123,9 +120,9 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
+        val tree = buildInternalQueryTree(ast)
         val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+            ctx.select(resolveInternalQueryTree(tree)).fetch()
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -145,7 +142,7 @@ class ByosApplicationTest {
     fun `query returning null`() {
         val query = """
             query {
-              orders {
+              allOrders {
                 order_id
                 user {
                   user_id
@@ -155,15 +152,15 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
+        val tree = buildInternalQueryTree(ast)
         val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+            ctx.select(resolveInternalQueryTree(tree)).fetch()
         }.formatGraphQLResponse()
 
         val expectedResult = """
             {
               "data": {
-                "orders": [
+                "allOrders": [
                   {
                     "order_id": 1,
                     "user": null
@@ -194,6 +191,7 @@ class ByosApplicationTest {
         assertEqualsIgnoringOrder(expectedResult, result)
     }
 
+    @Test
     fun `query with self-relation`() {
         /*
                A
@@ -205,7 +203,7 @@ class ByosApplicationTest {
          */
         val query = """
             query {
-              trees {
+              allTrees {
                 label
                 parent {
                   label
@@ -218,15 +216,15 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
+        val tree = buildInternalQueryTree(ast)
         val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+            ctx.select(resolveInternalQueryTree(tree)).fetch()
         }.formatGraphQLResponse()
 
         val expectedResult = """
             {
               "data": {
-                "trees": [
+                "allTrees": [
                   {
                     "label": "A",
                     "parent": null,
@@ -292,53 +290,6 @@ class ByosApplicationTest {
 
         println(result)
         assertEqualsIgnoringOrder(expectedResult, result)
-    }
-
-
-    fun assertEqualsIgnoringOrder(expected: String, actual: String) {
-        val mapper = ObjectMapper()
-        val expectedJson = mapper.readTree(expected)
-        val actualJson = mapper.readTree(actual)
-        assertTrue(compareJsonNodes(expectedJson, actualJson))
-    }
-
-    // compare two json nodes ignoring order of elements in arrays
-    fun compareJsonNodes(node1: JsonNode, node2: JsonNode): Boolean {
-        if (node1.isArray && node2.isArray) {
-            if (node1.size() != node2.size()) {
-                return false
-            }
-            val visited = mutableSetOf<Int>()
-            for (i in 0 until node1.size()) {
-                var found = false
-                for (j in 0 until node2.size()) {
-                    if (j in visited) {
-                        continue
-                    }
-                    if (compareJsonNodes(node1[i], node2[j])) {
-                        visited.add(j)
-                        found = true
-                        break
-                    }
-                }
-                if (!found) {
-                    return false
-                }
-            }
-            return true
-        } else if (node1.isObject && node2.isObject) {
-            if (node1.size() != node2.size()) {
-                return false
-            }
-            for ((key, value) in node1.fields()) {
-                if (!node2.has(key) || !compareJsonNodes(value, node2[key])) {
-                    return false
-                }
-            }
-            return true
-        } else {
-            return node1 == node2
-        }
     }
 
 }
