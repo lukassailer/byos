@@ -6,6 +6,7 @@ import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
 import graphql.schema.GraphQLSchema
+import graphql.schema.GraphQLType
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
@@ -58,46 +59,34 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Co
 
 fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String): FieldTypeInfo {
     // TODO: search only on specific type
-    val allTypes = schema.allTypesAsList
-    for (type in allTypes) {
-        // Interface, Union, Scalar, Enum, InputObject are not supported
+    for (type in schema.allTypesAsList) {
         when (type) {
             is GraphQLObjectType -> {
                 val fieldDef = type.getFieldDefinition(fieldName)
                 if (fieldDef != null) {
-                    return when (val fieldType = fieldDef.type) {
-                        // nested lists are not supported
-                        is GraphQLList -> {
-                            when (val wrappedType = fieldType.wrappedType) {
-                                is GraphQLObjectType -> FieldTypeInfo(wrappedType.name, true)
-                                is GraphQLNonNull -> FieldTypeInfo((wrappedType.wrappedType as GraphQLObjectType).name, true)
-                                else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedType'")
-                            }
-                        }
-
-                        is GraphQLNonNull -> {
-                            when (val wrappedType = fieldType.wrappedType) {
-                                is GraphQLList -> {
-                                    when (val wrappedWrappedType = wrappedType.wrappedType) {
-                                        is GraphQLObjectType -> FieldTypeInfo(wrappedWrappedType.name, true)
-                                        is GraphQLNonNull -> FieldTypeInfo((wrappedWrappedType.wrappedType as GraphQLObjectType).name, true)
-                                        else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedWrappedType'")
-                                    }
-                                }
-
-                                is GraphQLObjectType -> FieldTypeInfo(wrappedType.name, false)
-                                else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$wrappedType'")
-                            }
-                        }
-
-                        is GraphQLObjectType -> FieldTypeInfo(fieldType.name, false)
-                        else -> throw IllegalArgumentException("Field '$fieldName' has unsupported type '$fieldType'")
-                    }
+                    return getTypeInfo(fieldDef.type, false)
                 }
             }
         }
     }
-    throw IllegalArgumentException("Field '$fieldName' not found in schema")
+    error("Field '$fieldName' not found in schema")
+}
+
+private fun getTypeInfo(type: GraphQLType, inList: Boolean): FieldTypeInfo {
+    return when (type) {
+        is GraphQLObjectType -> FieldTypeInfo(type.name, inList)
+        is GraphQLNonNull -> getTypeInfo(type.wrappedType, inList)
+        is GraphQLList -> {
+            if (inList) {
+                error("Nested lists are not supported")
+            }
+            getTypeInfo(type.wrappedType, true)
+        }
+
+        else -> {
+            error("Unsupported type '$type'")
+        }
+    }
 }
 
 data class FieldTypeInfo(private val _relationName: String, val isList: Boolean) {
