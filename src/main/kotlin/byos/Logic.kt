@@ -1,5 +1,6 @@
 package byos
 
+import db.jooq.generated.Public.PUBLIC
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import graphql.schema.GraphQLList
@@ -44,15 +45,20 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Co
     val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
     val attributeNames = attributes.map { (it as InternalQueryNode.Attribute).title }.map { DSL.field(it) }
 
+    val outerTable = PUBLIC.getTable(relation.fieldTypeInfo.relationName) ?: error("Table not found")
     val subSelects = relations.map {
-        val whereCondition = WhereCondition.getFor(relation.fieldTypeInfo.relationName, (it as InternalQueryNode.Relation).fieldTypeInfo.relationName)
-        resolveInternalQueryTree(it, whereCondition)
+        // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
+
+        val innerTable = PUBLIC.getTable((it as InternalQueryNode.Relation).fieldTypeInfo.relationName) ?: error("Table not found")
+        resolveInternalQueryTree(
+            it, WhereCondition.getFor(it.title, outerTable, innerTable)
+        )
     }
 
     return DSL.multiset(
         DSL.select(attributeNames)
             .select(subSelects)
-            .from(relation.fieldTypeInfo.relationName)
+            .from(outerTable)
             .where(condition)
     ).`as`(relation.title + if (relation.fieldTypeInfo.isList) "" else OBJECT_SUFFIX)
 }
