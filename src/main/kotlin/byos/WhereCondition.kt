@@ -16,8 +16,8 @@ object WhereCondition {
             relationshipName == "books" && left is Author && right is Book -> DSL.condition(right.AUTHORID.eq(left.ID))
             relationshipName == "user" && left is Shoporder && right is Shopuser -> DSL.condition(right.USER_ID.eq(left.USER_ID))
             relationshipName == "orders" && left is Shopuser && right is Shoporder -> DSL.condition(right.USER_ID.eq(left.USER_ID))
-            relationshipName == "parent" && left is Tree && right is Tree -> DSL.condition(left.ID.eq(right.PARENT_ID))
-            relationshipName == "children" && left is Tree && right is Tree -> DSL.condition(right.ID.eq(left.PARENT_ID))
+            relationshipName == "children" && left is Tree && right is Tree -> DSL.condition(left.ID.eq(right.PARENT_ID))
+            relationshipName == "parent" && left is Tree && right is Tree -> DSL.condition(right.ID.eq(left.PARENT_ID))
             else -> error("No relationship called $relationshipName found for tables $left and $right")
         }
 }

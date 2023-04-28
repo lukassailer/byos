@@ -17,13 +17,14 @@ import org.jooq.Record
 import org.jooq.Result
 import org.jooq.impl.DSL
 import java.io.File
+import java.util.UUID
 import graphql.language.Field as GraphQLField
 
 private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
 private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
 
 sealed interface InternalQueryNode {
-    data class Relation(val title: String, val children: List<InternalQueryNode>, val fieldTypeInfo: FieldTypeInfo) : InternalQueryNode
+    data class Relation(val title: String, val children: List<InternalQueryNode>, val fieldTypeInfo: FieldTypeInfo, val alias: String) : InternalQueryNode
     data class Attribute(val title: String) : InternalQueryNode
 }
 
@@ -37,7 +38,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<Intern
             InternalQueryNode.Attribute(selection.name)
         } else {
             val fieldTypeInfo = getFieldTypeInfo(schema, selection.name)
-            InternalQueryNode.Relation(selection.name, getChildrenFromSelectionSet(subSelectionSet), fieldTypeInfo)
+            InternalQueryNode.Relation(selection.name, getChildrenFromSelectionSet(subSelectionSet), fieldTypeInfo, UUID.randomUUID().toString())
         }
     }
 
@@ -45,11 +46,11 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Co
     val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
     val attributeNames = attributes.map { (it as InternalQueryNode.Attribute).title }.map { DSL.field(it) }
 
-    val outerTable = PUBLIC.getTable(relation.fieldTypeInfo.relationName) ?: error("Table not found")
+    val outerTable = (PUBLIC.getTable(relation.fieldTypeInfo.relationName) ?: error("Table not found")).`as`(relation.alias)
     val subSelects = relations.map {
         // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
 
-        val innerTable = PUBLIC.getTable((it as InternalQueryNode.Relation).fieldTypeInfo.relationName) ?: error("Table not found")
+        val innerTable = (PUBLIC.getTable((it as InternalQueryNode.Relation).fieldTypeInfo.relationName) ?: error("Table not found")).`as`(it.alias)
         resolveInternalQueryTree(
             it, WhereCondition.getFor(it.title, outerTable, innerTable)
         )
