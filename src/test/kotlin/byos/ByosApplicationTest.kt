@@ -288,8 +288,66 @@ class ByosApplicationTest {
             }
             """
 
-        println(result)
         assertEqualsIgnoringOrder(expectedResult, result)
     }
 
+    @Test
+    fun `query with alias`() {
+        val query = """
+            query {
+              novel: allBooks {
+                nid: id
+                id
+                writer: author{
+                  id: id
+                }
+              }
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val tree = buildInternalQueryTree(ast)
+        val result = executeJooqQuery { ctx ->
+            ctx.select(resolveInternalQueryTree(tree)).fetch()
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "novel": [
+                  {
+                    "nid": 1,
+                    "id": 1,
+                    "writer": {
+                      "id": 1
+                    }
+                  },
+                  {
+                    "nid": 2,
+                    "id": 2,
+                    "writer": {
+                      "id": 1
+                    }
+                  },
+                  {
+                    "nid": 3,
+                    "id": 3,
+                    "writer": {
+                      "id": 2
+                    }
+                  },
+                  {
+                    "nid": 4,
+                    "id": 4,
+                    "writer": {
+                      "id": 2
+                    }
+                  }
+                ]
+              }
+            }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
+    }
 }
