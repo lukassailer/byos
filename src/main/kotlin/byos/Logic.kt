@@ -23,9 +23,15 @@ import graphql.language.Field as GraphQLField
 private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
 private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
 
-sealed interface InternalQueryNode {
-    data class Relation(val title: String, val children: List<InternalQueryNode>, val fieldTypeInfo: FieldTypeInfo, val alias: String) : InternalQueryNode
-    data class Attribute(val title: String) : InternalQueryNode
+sealed class InternalQueryNode(val graphQLFieldName: String) {
+    class Relation(graphQLFieldName: String, val children: List<InternalQueryNode>, val fieldTypeInfo: FieldTypeInfo, val alias: String) :
+        InternalQueryNode(graphQLFieldName)
+
+    class Attribute(graphQLFieldName: String) : InternalQueryNode(graphQLFieldName)
+}
+
+data class FieldTypeInfo(private val _relationName: String, val isList: Boolean) {
+    val relationName = _relationName.lowercase()
 }
 
 fun buildInternalQueryTree(queryDefinition: OperationDefinition): InternalQueryNode.Relation =
@@ -37,22 +43,25 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<Intern
         if (subSelectionSet == null) {
             InternalQueryNode.Attribute(selection.name)
         } else {
-            val fieldTypeInfo = getFieldTypeInfo(schema, selection.name)
-            InternalQueryNode.Relation(selection.name, getChildrenFromSelectionSet(subSelectionSet), fieldTypeInfo, UUID.randomUUID().toString())
+            InternalQueryNode.Relation(
+                graphQLFieldName = selection.name,
+                children = getChildrenFromSelectionSet(subSelectionSet),
+                fieldTypeInfo = getFieldTypeInfo(schema, selection.name),
+                alias = "${selection.name}-${UUID.randomUUID()}"
+            )
         }
     }
 
 fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Condition = DSL.noCondition()): Field<Result<Record>> {
     val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
-    val attributeNames = attributes.map { (it as InternalQueryNode.Attribute).title }.map { DSL.field(it) }
+    val attributeNames = attributes.map { it.graphQLFieldName }.map { DSL.field(it) }
+    // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
+    val outerTable = getTableWithAlias(relation)
 
-    val outerTable = (PUBLIC.getTable(relation.fieldTypeInfo.relationName) ?: error("Table not found")).`as`(relation.alias)
-    val subSelects = relations.map {
-        // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
-
-        val innerTable = (PUBLIC.getTable((it as InternalQueryNode.Relation).fieldTypeInfo.relationName) ?: error("Table not found")).`as`(it.alias)
+    val subSelects = relations.map { subRelation ->
+        val innerTable = getTableWithAlias(subRelation as InternalQueryNode.Relation)
         resolveInternalQueryTree(
-            it, WhereCondition.getFor(it.title, outerTable, innerTable)
+            subRelation, WhereCondition.getFor(subRelation.graphQLFieldName, outerTable, innerTable)
         )
     }
 
@@ -61,22 +70,21 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Co
             .select(subSelects)
             .from(outerTable)
             .where(condition)
-    ).`as`(relation.title + if (relation.fieldTypeInfo.isList) "" else OBJECT_SUFFIX)
+    ).`as`(relation.graphQLFieldName + if (relation.fieldTypeInfo.isList) "" else OBJECT_SUFFIX)
 }
+
+private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
+    PUBLIC.getTable(relation.fieldTypeInfo.relationName)?.`as`(relation.alias) ?: error("Table not found")
 
 fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String): FieldTypeInfo {
     // TODO: search only on specific type
-    for (type in schema.allTypesAsList) {
-        when (type) {
-            is GraphQLObjectType -> {
-                val fieldDef = type.getFieldDefinition(fieldName)
-                if (fieldDef != null) {
-                    return getTypeInfo(fieldDef.type, false)
-                }
-            }
-        }
-    }
-    error("Field '$fieldName' not found in schema")
+    schema.allTypesAsList
+        .filterIsInstance<GraphQLObjectType>()
+        .flatMap { it.fieldDefinitions }
+        .find { it.name == fieldName }
+        ?.type
+        ?.let { return getTypeInfo(it, false) }
+        ?: error("Field '$fieldName' not found in schema")
 }
 
 private fun getTypeInfo(type: GraphQLType, inList: Boolean): FieldTypeInfo {
@@ -94,8 +102,4 @@ private fun getTypeInfo(type: GraphQLType, inList: Boolean): FieldTypeInfo {
             error("Unsupported type '$type'")
         }
     }
-}
-
-data class FieldTypeInfo(private val _relationName: String, val isList: Boolean) {
-    val relationName = _relationName.lowercase()
 }

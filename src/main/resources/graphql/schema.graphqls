@@ -1,10 +1,10 @@
 type Query {
-    allAuthors: [Author]
-    allBooks: [Book]
-    test: Test
-    allOrders: [ShopOrder]
-    allUsers: [ShopUser]
-    allTrees: [Tree]
+    allAuthors: [Author!]!
+    allBooks: [Book!]!
+    test: Test!
+    allOrders: [ShopOrder!]!
+    allUsers: [ShopUser!]!
+    allTrees: [Tree!]!
 }
 
 type Test {
