@@ -34,8 +34,8 @@ data class FieldTypeInfo(private val fieldName: String, val isList: Boolean) {
     val relationName = fieldName.lowercase()
 }
 
-fun buildInternalQueryTree(queryDefinition: OperationDefinition): InternalQueryNode.Relation =
-    getChildrenFromSelectionSet(queryDefinition.selectionSet)[0] as InternalQueryNode.Relation
+fun buildInternalQueryTree(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
+    getChildrenFromSelectionSet(queryDefinition.selectionSet) as List<InternalQueryNode.Relation>
 
 private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<InternalQueryNode> =
     selectionSet.selections.mapNotNull { selection ->

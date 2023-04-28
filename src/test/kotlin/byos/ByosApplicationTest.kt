@@ -19,9 +19,11 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildInternalQueryTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveInternalQueryTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -70,9 +72,11 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildInternalQueryTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveInternalQueryTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -120,9 +124,11 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildInternalQueryTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveInternalQueryTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -152,9 +158,11 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildInternalQueryTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveInternalQueryTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -216,9 +224,11 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildInternalQueryTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveInternalQueryTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -306,9 +316,11 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildInternalQueryTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveInternalQueryTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -344,6 +356,39 @@ class ByosApplicationTest {
                     }
                   }
                 ]
+              }
+            }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
+    }
+
+    @Test
+    fun `multiple queries?`() {
+        val query = """
+            query {
+              test {value}
+              test2: test {value}
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "test": {
+                  "value": "test"
+                },
+                "test2": {
+                  "value": "test"
+                }
               }
             }
             """
