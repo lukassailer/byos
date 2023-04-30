@@ -1,10 +1,12 @@
 type Query {
     allAuthors: [Author!]!
+    authorById(id: ID!): Author!
     allBooks: [Book!]!
     test: Test!
     allOrders: [ShopOrder!]!
     allUsers: [ShopUser!]!
     allTrees: [Tree!]!
+    allBookStores: [BookStore!]!
 }
 
 type Test {
@@ -24,6 +26,23 @@ type Author {
     lastName: String!
     books: [Book!]!
     distinguished: Boolean
+}
+
+type BookStore {
+    name: String!
+    books: [Book!]!
+    b2b: [Book_To_Bookstore!]!
+}
+
+type Book_To_Bookstore {
+    book: Book!
+    stock: Int
+}
+
+type Language {
+    id: ID!
+    cd: String!
+    description: String
 }
 
 type ShopUser {
