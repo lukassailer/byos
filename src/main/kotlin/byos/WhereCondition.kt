@@ -8,12 +8,19 @@ import db.jooq.generated.tables.Bookstore
 import db.jooq.generated.tables.Shoporder
 import db.jooq.generated.tables.Shopuser
 import db.jooq.generated.tables.Tree
+import graphql.language.Argument
+import graphql.language.BooleanValue
+import graphql.language.EnumValue
+import graphql.language.FloatValue
+import graphql.language.IntValue
+import graphql.language.StringValue
 import org.jooq.Condition
+import org.jooq.Field
 import org.jooq.Table
 import org.jooq.impl.DSL
 
 object WhereCondition {
-    fun getFor(relationshipName: String, left: Table<*>, right: Table<*>): Condition =
+    fun getForRelationship(relationshipName: String, left: Table<*>, right: Table<*>): Condition =
         when {
             relationshipName == "author" && left is Book && right is Author -> left.AUTHORID.eq(right.ID)
             relationshipName == "books" && left is Author && right is Book -> right.AUTHORID.eq(left.ID)
@@ -30,4 +37,22 @@ object WhereCondition {
 
             else -> error("No relationship called $relationshipName found for tables $left and $right")
         }
+
+    // TODO: Use GraphQL Schema to get the type of the field
+    fun getForArgument(argument: Argument, table: Table<*>): Condition {
+        val field = table.field(argument.name)
+        if (field == null) {
+            error("No field called ${argument.name} found for table $table")
+        } else {
+            return when (val value = argument.value) {
+                is IntValue -> (field as Field<Any>).eq(value.value)
+                is FloatValue -> (field as Field<Any>).eq(value.value)
+                is BooleanValue -> (field as Field<Any>).eq(value.isValue)
+                is StringValue -> (field as Field<Any>).eq(value.value)
+                is EnumValue -> (field as Field<Any>).eq(value.name)
+                else -> error("Unsupported argument type ${argument.value.javaClass}")
+            }
+        }
+    }
+
 }
