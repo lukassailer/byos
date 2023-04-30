@@ -44,12 +44,14 @@ class GraphiQLFilter : OncePerRequestFilter() {
             return
         }
 
-        val tree = buildTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
-        }
-        println(result)
-        response.writer.write(result.formatGraphQLResponse())
+        val trees = buildInternalQueryTree(ast)
+        val results =
+            trees.map { tree ->
+                executeJooqQuery { ctx ->
+                    ctx.select(resolveInternalQueryTree(tree)).fetch()
+                }
+            }
+        response.writer.write(results.formatGraphQLResponse())
     }
 
     private fun getQueryFromRequest(request: HttpServletRequest): String? {

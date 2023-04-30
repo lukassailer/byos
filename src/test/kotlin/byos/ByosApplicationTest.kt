@@ -1,8 +1,5 @@
 package byos
 
-import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
@@ -13,7 +10,7 @@ class ByosApplicationTest {
     fun `simple query`() {
         val query = """
             query {
-              books {
+              allBooks {
                 id
                 title
                 publishedin
@@ -22,15 +19,17 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
             {
               "data": {
-                "books": [
+                "allBooks": [
                   {
                     "id": 1,
                     "title": "1984",
@@ -63,7 +62,7 @@ class ByosApplicationTest {
     fun `simple query with more depth`() {
         val query = """
             query {
-              authors {
+              allAuthors {
                 lastName
                 books {
                   title
@@ -73,15 +72,17 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
             {
               "data": {
-                "authors": [
+                "allAuthors": [
                   {
                     "lastName": "Orwell",
                     "books": [
@@ -123,9 +124,11 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
@@ -145,7 +148,7 @@ class ByosApplicationTest {
     fun `query returning null`() {
         val query = """
             query {
-              orders {
+              allOrders {
                 order_id
                 user {
                   user_id
@@ -155,15 +158,17 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val tree = buildTree(ast)
-        val result = executeJooqQuery { ctx ->
-            ctx.select(resolveTree(tree)).fetch()
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
         }.formatGraphQLResponse()
 
         val expectedResult = """
             {
               "data": {
-                "orders": [
+                "allOrders": [
                   {
                     "order_id": 1,
                     "user": null
@@ -194,51 +199,200 @@ class ByosApplicationTest {
         assertEqualsIgnoringOrder(expectedResult, result)
     }
 
+    @Test
+    fun `query with self-relation`() {
+        /*
+               A
+             /   \
+            B     C
+           / \   /
+          D   E F
 
-    fun assertEqualsIgnoringOrder(expected: String, actual: String) {
-        val mapper = ObjectMapper()
-        val expectedJson = mapper.readTree(expected)
-        val actualJson = mapper.readTree(actual)
-        assertTrue(compareJsonNodes(expectedJson, actualJson))
+         */
+        val query = """
+            query {
+              allTrees {
+                label
+                parent {
+                  label
+                }
+                children {
+                  label
+                }
+              }
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "allTrees": [
+                  {
+                    "label": "A",
+                    "parent": null,
+                    "children": [
+                      {
+                        "label": "B"
+                      },
+                      {
+                        "label": "C"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "B",
+                    "parent": {
+                      "label": "A"
+                    },
+                    "children": [
+                      {
+                        "label": "D"
+                      },
+                      {
+                        "label": "E"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "C",
+                    "parent": {
+                      "label": "A"
+                    },
+                    "children": [
+                      {
+                        "label": "F"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "D",
+                    "parent": {
+                      "label": "B"
+                    },
+                    "children": []
+                  },
+                  {
+                    "label": "E",
+                    "parent": {
+                      "label": "B"
+                    },
+                    "children": []
+                  },
+                  {
+                    "label": "F",
+                    "parent": {
+                      "label": "C"
+                    },
+                    "children": []
+                  }
+                ]
+              }
+            }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
     }
 
-    // compare two json nodes ignoring order of elements in arrays
-    fun compareJsonNodes(node1: JsonNode, node2: JsonNode): Boolean {
-        if (node1.isArray && node2.isArray) {
-            if (node1.size() != node2.size()) {
-                return false
+    @Test
+    fun `query with alias`() {
+        val query = """
+            query {
+              novel: allBooks {
+                nid: id
+                id
+                writer: author{
+                  id: id
+                }
+              }
             }
-            val visited = mutableSetOf<Int>()
-            for (i in 0 until node1.size()) {
-                var found = false
-                for (j in 0 until node2.size()) {
-                    if (j in visited) {
-                        continue
+        """
+
+        val ast = parseASTFromQuery(query)
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "novel": [
+                  {
+                    "nid": 1,
+                    "id": 1,
+                    "writer": {
+                      "id": 1
                     }
-                    if (compareJsonNodes(node1[i], node2[j])) {
-                        visited.add(j)
-                        found = true
-                        break
+                  },
+                  {
+                    "nid": 2,
+                    "id": 2,
+                    "writer": {
+                      "id": 1
                     }
-                }
-                if (!found) {
-                    return false
-                }
+                  },
+                  {
+                    "nid": 3,
+                    "id": 3,
+                    "writer": {
+                      "id": 2
+                    }
+                  },
+                  {
+                    "nid": 4,
+                    "id": 4,
+                    "writer": {
+                      "id": 2
+                    }
+                  }
+                ]
+              }
             }
-            return true
-        } else if (node1.isObject && node2.isObject) {
-            if (node1.size() != node2.size()) {
-                return false
-            }
-            for ((key, value) in node1.fields()) {
-                if (!node2.has(key) || !compareJsonNodes(value, node2[key])) {
-                    return false
-                }
-            }
-            return true
-        } else {
-            return node1 == node2
-        }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
     }
 
+    @Test
+    fun `multiple queries?`() {
+        val query = """
+            query {
+              test {value}
+              test2: test {value}
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "test": {
+                  "value": "test"
+                },
+                "test2": {
+                  "value": "test"
+                }
+              }
+            }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
+    }
 }

@@ -1,11 +1,10 @@
 type Query {
-    bookById(id: ID): Book
-    authorById(id: ID): Author
-    authors: [Author]
-    books: [Book]
-    test: Test
-    orders: [XOrder]
-    users: [XUser]
+    allAuthors: [Author!]!
+    allBooks: [Book!]!
+    test: Test!
+    allOrders: [ShopOrder!]!
+    allUsers: [ShopUser!]!
+    allTrees: [Tree!]!
 }
 
 type Test {
@@ -13,30 +12,37 @@ type Test {
 }
 
 type Book {
-    id: ID
-    title: String
-    publishedin: Int
-    author: Author
+    id: ID!
+    title: String!
+    publishedin: Int!
+    author: Author!
 }
 
 type Author {
-    id: ID
+    id: ID!
     firstName: String
-    lastName: String
-    books: [Book]
+    lastName: String!
+    books: [Book!]!
     distinguished: Boolean
 }
 
-type XUser {
-    user_id: Int
-    username: String
-    email: String
-    orders: [XOrder]
+type ShopUser {
+    user_id: ID!
+    username: String!
+    email: String!
+    orders: [ShopOrder!]!
 }
 
-type XOrder {
-    order_id: Int
-    order_number: String
-    user: XUser
-    order_date: String
+type ShopOrder {
+    order_id: ID!
+    order_number: String!
+    user: ShopUser
+    order_date: String!
+}
+
+type Tree {
+    id: ID!
+    label: String!
+    parent: Tree
+    children: [Tree!]!
 }
