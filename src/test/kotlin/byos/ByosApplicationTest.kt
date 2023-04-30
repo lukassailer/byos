@@ -395,4 +395,151 @@ class ByosApplicationTest {
 
         assertEqualsIgnoringOrder(expectedResult, result)
     }
+
+    @Test
+    fun `query with argument`() {
+        val query = """
+            query {
+              authorById(id: 1) {
+                id
+                lastName
+              }
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "authorById": {
+                  "id": 1,
+                  "lastName": "Orwell"
+                }
+              }
+            }
+            """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
+    }
+
+    @Test
+    fun `n to m relation two ways`() {
+        val query = """
+            query {
+              allBookStores {
+                name
+                books {
+                  title
+                }
+                b2b {
+                  stock
+                  book {
+                    title
+                  }
+                }
+              }
+            }
+        """
+
+        val ast = parseASTFromQuery(query)
+        val trees = buildInternalQueryTree(ast)
+        val result = trees.map { tree ->
+            executeJooqQuery { ctx ->
+                ctx.select(resolveInternalQueryTree(tree)).fetch()
+            }
+        }.formatGraphQLResponse()
+
+        val expectedResult = """
+            {
+              "data": {
+                "allBookStores": [
+                  {
+                    "name": "Orell Füssli",
+                    "books": [
+                      {
+                        "title": "1984"
+                      },
+                      {
+                        "title": "Animal Farm"
+                      },
+                      {
+                        "title": "O Alquimista"
+                      }
+                    ],
+                    "b2b": [
+                      {
+                        "stock": 10,
+                        "book": {
+                          "title": "1984"
+                        }
+                      },
+                      {
+                        "stock": 10,
+                        "book": {
+                          "title": "Animal Farm"
+                        }
+                      },
+                      {
+                        "stock": 10,
+                        "book": {
+                          "title": "O Alquimista"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Ex Libris",
+                    "books": [
+                      {
+                        "title": "1984"
+                      },
+                      {
+                        "title": "O Alquimista"
+                      }
+                    ],
+                    "b2b": [
+                      {
+                        "stock": 1,
+                        "book": {
+                          "title": "1984"
+                        }
+                      },
+                      {
+                        "stock": 2,
+                        "book": {
+                          "title": "O Alquimista"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Buchhandlung im Volkshaus",
+                    "books": [
+                      {
+                        "title": "O Alquimista"
+                      }
+                    ],
+                    "b2b": [
+                      {
+                        "stock": 1,
+                        "book": {
+                          "title": "O Alquimista"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+        """
+
+        assertEqualsIgnoringOrder(expectedResult, result)
+    }
 }

@@ -9,6 +9,7 @@ import graphql.parser.Parser
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
+import graphql.validation.Validator
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -16,6 +17,7 @@ import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 import java.io.File
+import java.util.Locale
 import java.util.stream.Collectors
 
 @Component
@@ -31,8 +33,21 @@ class GraphiQLFilter : OncePerRequestFilter() {
             return
         }
 
-        val ast = parseASTFromQuery(query)
         response.contentType = MediaType.APPLICATION_JSON_VALUE
+        response.characterEncoding = "UTF-8"
+
+        val document = Parser().parseDocument(query)
+        val errors = Validator().validateDocument(schema, document, Locale.ENGLISH)
+        if (errors.isNotEmpty()) {
+            response.writer.write(
+                ObjectMapper().writeValueAsString(
+                    mapOf("errors" to errors.map { it.toSpecification() })
+                )
+            )
+            return
+        }
+
+        val ast = parseASTFromQuery(query)
 
         if (ast.name == "IntrospectionQuery") {
             val executionInput = ExecutionInput.newExecutionInput()
@@ -51,6 +66,7 @@ class GraphiQLFilter : OncePerRequestFilter() {
                     ctx.select(resolveInternalQueryTree(tree)).fetch()
                 }
             }
+        results.map(::println)
         response.writer.write(results.formatGraphQLResponse())
     }
 
