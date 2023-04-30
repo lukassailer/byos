@@ -22,12 +22,15 @@ import java.util.stream.Collectors
 
 @Component
 class GraphiQLFilter : OncePerRequestFilter() {
-    private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
-    private val schema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
-    private val graphQL = GraphQL.newGraphQL(schema).build()
-
+    companion object {
+        private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
+        private val schema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
+        private val graphQL = GraphQL.newGraphQL(schema).build()
+        private val objectMapper = ObjectMapper()
+    }
+    
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
-        val query = getQueryFromRequest(request)
+        val query = extractQueryFromRequest(request)
         if (query.isNullOrBlank()) {
             filterChain.doFilter(request, response)
             return
@@ -40,7 +43,7 @@ class GraphiQLFilter : OncePerRequestFilter() {
         val errors = Validator().validateDocument(schema, document, Locale.ENGLISH)
         if (errors.isNotEmpty()) {
             response.writer.write(
-                ObjectMapper().writeValueAsString(
+                objectMapper.writeValueAsString(
                     mapOf("errors" to errors.map { it.toSpecification() })
                 )
             )
@@ -55,13 +58,13 @@ class GraphiQLFilter : OncePerRequestFilter() {
                 .context(request)
                 .build()
             val result = graphQL.execute(executionInput)
-            response.writer.write(ObjectMapper().writeValueAsString(result.toSpecification()))
+            response.writer.write(objectMapper.writeValueAsString(result.toSpecification()))
             return
         }
 
-        val trees = buildInternalQueryTree(ast)
+        val queryTrees = buildInternalQueryTree(ast)
         val results =
-            trees.map { tree ->
+            queryTrees.map { tree ->
                 executeJooqQuery { ctx ->
                     ctx.select(resolveInternalQueryTree(tree)).fetch()
                 }
@@ -70,9 +73,9 @@ class GraphiQLFilter : OncePerRequestFilter() {
         response.writer.write(results.formatGraphQLResponse())
     }
 
-    private fun getQueryFromRequest(request: HttpServletRequest): String? {
+    private fun extractQueryFromRequest(request: HttpServletRequest): String? {
         val requestBody = request.reader.lines().collect(Collectors.joining())
-        val jsonNode = ObjectMapper().readTree(requestBody)
+        val jsonNode = objectMapper.readTree(requestBody)
         return jsonNode["query"]?.textValue()
     }
 }

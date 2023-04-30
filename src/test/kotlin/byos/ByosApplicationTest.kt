@@ -19,8 +19,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -72,8 +72,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -124,8 +124,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -158,8 +158,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -224,8 +224,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -316,8 +316,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -373,8 +373,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -408,8 +408,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
@@ -449,8 +449,8 @@ class ByosApplicationTest {
         """
 
         val ast = parseASTFromQuery(query)
-        val trees = buildInternalQueryTree(ast)
-        val result = trees.map { tree ->
+        val queryTrees = buildInternalQueryTree(ast)
+        val result = queryTrees.map { tree ->
             executeJooqQuery { ctx ->
                 ctx.select(resolveInternalQueryTree(tree)).fetch()
             }
