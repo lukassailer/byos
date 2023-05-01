@@ -7,6 +7,7 @@ type Query {
     allUsers: [ShopUser!]!
     allTrees: [Tree!]!
     allBookStores: [BookStore!]!
+    booksByYear(publishedin: Int!): [Book!]!
 }
 
 type Test {

@@ -13,6 +13,7 @@ import graphql.language.BooleanValue
 import graphql.language.EnumValue
 import graphql.language.FloatValue
 import graphql.language.IntValue
+import graphql.language.NullValue
 import graphql.language.StringValue
 import org.jooq.Condition
 import org.jooq.Field
@@ -50,6 +51,7 @@ object WhereCondition {
                 is BooleanValue -> (field as Field<Any>).eq(value.isValue)
                 is StringValue -> (field as Field<Any>).eq(value.value)
                 is EnumValue -> (field as Field<Any>).eq(value.name)
+                is NullValue -> (field as Field<Any>).isNull
                 else -> error("Unsupported argument type ${argument.value.javaClass}")
             }
         }

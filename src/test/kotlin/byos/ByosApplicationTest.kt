@@ -1,10 +1,14 @@
 package byos
 
 import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
 @SpringBootTest
-class ByosApplicationTest {
+class ByosApplicationTest(
+    @Autowired
+    private val graphQLService: GraphQLService
+) {
 
     @Test
     fun `simple query`() {
@@ -18,13 +22,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -71,13 +69,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -123,13 +115,7 @@ class ByosApplicationTest {
             }  
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -157,13 +143,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -223,13 +203,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -315,13 +289,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -372,13 +340,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -407,13 +369,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
@@ -448,13 +404,7 @@ class ByosApplicationTest {
             }
         """
 
-        val ast = parseASTFromQuery(query)
-        val queryTrees = buildInternalQueryTree(ast)
-        val result = queryTrees.map { tree ->
-            executeJooqQuery { ctx ->
-                ctx.select(resolveInternalQueryTree(tree)).fetch()
-            }
-        }.formatGraphQLResponse()
+        val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
             {
