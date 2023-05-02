@@ -26,15 +26,15 @@ private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(Schem
 
 sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: String) {
     class Relation(
-        graphQLName: String,
+        graphQLFieldName: String,
         graphQLAlias: String,
         val sqlAlias: String,
         val fieldTypeInfo: FieldTypeInfo,
         val children: List<InternalQueryNode>,
         val arguments: List<Argument>
-    ) : InternalQueryNode(graphQLName, graphQLAlias)
+    ) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 
-    class Attribute(graphQLFieldName: String, alias: String) : InternalQueryNode(graphQLFieldName, alias)
+    class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 }
 
 data class FieldTypeInfo(private val fieldName: String, val isList: Boolean) {
@@ -52,11 +52,11 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<Intern
             if (subSelectionSet == null) {
                 InternalQueryNode.Attribute(
                     graphQLFieldName = selection.name,
-                    alias = selection.alias ?: selection.name // duplicates are not possible
+                    graphQLAlias = selection.alias ?: selection.name // duplicates are not possible
                 )
             } else {
                 InternalQueryNode.Relation(
-                    graphQLName = selection.name,
+                    graphQLFieldName = selection.name,
                     graphQLAlias = selection.alias ?: selection.name,
                     sqlAlias = "${selection.name}-${UUID.randomUUID()}",
                     fieldTypeInfo = getFieldTypeInfo(schema, selection.name),
