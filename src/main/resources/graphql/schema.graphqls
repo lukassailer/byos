@@ -1,6 +1,7 @@
 type Query {
     allAuthors: [Author!]!
-    authorById(id: ID!): Author!
+    authorById(id: ID!): Author
+    authorsByIds(id: [ID!]!): [Author!]!
     allBooks: [Book!]!
     test: Test!
     allOrders: [ShopOrder!]!

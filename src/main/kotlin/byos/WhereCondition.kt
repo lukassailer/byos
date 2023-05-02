@@ -9,12 +9,14 @@ import db.jooq.generated.tables.Shoporder
 import db.jooq.generated.tables.Shopuser
 import db.jooq.generated.tables.Tree
 import graphql.language.Argument
+import graphql.language.ArrayValue
 import graphql.language.BooleanValue
 import graphql.language.EnumValue
 import graphql.language.FloatValue
 import graphql.language.IntValue
 import graphql.language.NullValue
 import graphql.language.StringValue
+import graphql.language.Value
 import org.jooq.Condition
 import org.jooq.Field
 import org.jooq.Table
@@ -41,20 +43,25 @@ object WhereCondition {
 
     // TODO: Use GraphQL Schema to get the type of the field
     fun getForArgument(argument: Argument, table: Table<*>): Condition {
-        val field = table.field(argument.name)
-        if (field == null) {
-            error("No field called ${argument.name} found for table $table")
-        } else {
-            return when (val value = argument.value) {
-                is IntValue -> (field as Field<Any>).eq(value.value)
-                is FloatValue -> (field as Field<Any>).eq(value.value)
-                is BooleanValue -> (field as Field<Any>).eq(value.isValue)
-                is StringValue -> (field as Field<Any>).eq(value.value)
-                is EnumValue -> (field as Field<Any>).eq(value.name)
-                is NullValue -> (field as Field<Any>).isNull
-                else -> error("Unsupported argument type ${argument.value.javaClass}")
-            }
+        val field = table.field(argument.name) as Field<Any>?
+            ?: error("No field called ${argument.name} found for table $table")
+        
+        return when (val value = extractValue(argument.value)) {
+            is List<*> -> field.`in`(value)
+            else -> field.eq(value)
         }
     }
+
+    private fun extractValue(value: Value<Value<*>>): Any? =
+        when (value) {
+            is IntValue -> value.value
+            is FloatValue -> value.value
+            is BooleanValue -> value.isValue
+            is StringValue -> value.value
+            is EnumValue -> value.name
+            is NullValue -> null
+            is ArrayValue -> value.values.map { extractValue(it) }
+            else -> error("Unsupported argument type ${value.javaClass}")
+        }
 
 }
