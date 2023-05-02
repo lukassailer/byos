@@ -52,7 +52,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<Intern
             if (subSelectionSet == null) {
                 InternalQueryNode.Attribute(
                     graphQLFieldName = selection.name,
-                    graphQLAlias = selection.alias ?: selection.name // duplicates are not possible
+                    graphQLAlias = selection.alias ?: selection.name
                 )
             } else {
                 InternalQueryNode.Relation(
