@@ -8,12 +8,22 @@ import db.jooq.generated.tables.Bookstore
 import db.jooq.generated.tables.Shoporder
 import db.jooq.generated.tables.Shopuser
 import db.jooq.generated.tables.Tree
+import graphql.language.Argument
+import graphql.language.ArrayValue
+import graphql.language.BooleanValue
+import graphql.language.EnumValue
+import graphql.language.FloatValue
+import graphql.language.IntValue
+import graphql.language.NullValue
+import graphql.language.StringValue
+import graphql.language.Value
 import org.jooq.Condition
+import org.jooq.Field
 import org.jooq.Table
 import org.jooq.impl.DSL
 
 object WhereCondition {
-    fun getFor(relationshipName: String, left: Table<*>, right: Table<*>): Condition =
+    fun getForRelationship(relationshipName: String, left: Table<*>, right: Table<*>): Condition =
         when {
             relationshipName == "author" && left is Book && right is Author -> left.AUTHORID.eq(right.ID)
             relationshipName == "books" && left is Author && right is Book -> right.AUTHORID.eq(left.ID)
@@ -30,4 +40,28 @@ object WhereCondition {
 
             else -> error("No relationship called $relationshipName found for tables $left and $right")
         }
+
+    // TODO: Use GraphQL Schema to get the type of the field
+    fun getForArgument(argument: Argument, table: Table<*>): Condition {
+        val field = table.field(argument.name) as Field<Any>?
+            ?: error("No field called ${argument.name} found for table $table")
+        
+        return when (val value = extractValue(argument.value)) {
+            is List<*> -> field.`in`(value)
+            else -> field.eq(value)
+        }
+    }
+
+    private fun extractValue(value: Value<Value<*>>): Any? =
+        when (value) {
+            is IntValue -> value.value
+            is FloatValue -> value.value
+            is BooleanValue -> value.isValue
+            is StringValue -> value.value
+            is EnumValue -> value.name
+            is NullValue -> null
+            is ArrayValue -> value.values.map { extractValue(it) }
+            else -> error("Unsupported argument type ${value.javaClass}")
+        }
+
 }

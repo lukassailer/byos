@@ -1,12 +1,14 @@
 type Query {
     allAuthors: [Author!]!
-    authorById(id: ID!): Author!
+    authorById(id: ID!): Author
+    authorsByIds(id: [ID!]!): [Author!]!
     allBooks: [Book!]!
     test: Test!
     allOrders: [ShopOrder!]!
     allUsers: [ShopUser!]!
     allTrees: [Tree!]!
     allBookStores: [BookStore!]!
+    booksByYear(publishedin: Int!): [Book!]!
 }
 
 type Test {

@@ -1,6 +1,7 @@
 package byos
 
 import db.jooq.generated.Public.PUBLIC
+import graphql.language.Argument
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import graphql.schema.GraphQLList
@@ -24,10 +25,16 @@ private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
 private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
 
 sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: String) {
-    class Relation(graphQLName: String, graphQLAlias: String, val sqlAlias: String, val fieldTypeInfo: FieldTypeInfo, val children: List<InternalQueryNode>) :
-        InternalQueryNode(graphQLName, graphQLAlias)
+    class Relation(
+        graphQLFieldName: String,
+        graphQLAlias: String,
+        val sqlAlias: String,
+        val fieldTypeInfo: FieldTypeInfo,
+        val children: List<InternalQueryNode>,
+        val arguments: List<Argument>
+    ) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 
-    class Attribute(graphQLFieldName: String, alias: String) : InternalQueryNode(graphQLFieldName, alias)
+    class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 }
 
 data class FieldTypeInfo(private val fieldName: String, val isList: Boolean) {
@@ -35,29 +42,31 @@ data class FieldTypeInfo(private val fieldName: String, val isList: Boolean) {
 }
 
 fun buildInternalQueryTree(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
-    getChildrenFromSelectionSet(queryDefinition.selectionSet) as List<InternalQueryNode.Relation>
+    getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
 
 private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<InternalQueryNode> =
-    selectionSet.selections.mapNotNull { selection ->
-        val subSelectionSet = (selection as GraphQLField).selectionSet
-        if (subSelectionSet == null) {
-            InternalQueryNode.Attribute(
-                graphQLFieldName = selection.name,
-                alias = selection.alias ?: selection.name // duplicates are not possible
-            )
-        } else {
-            println(selection.alias)
-            InternalQueryNode.Relation(
-                graphQLName = selection.name,
-                graphQLAlias = selection.alias ?: selection.name,
-                sqlAlias = "${selection.name}-${UUID.randomUUID()}",
-                fieldTypeInfo = getFieldTypeInfo(schema, selection.name),
-                children = getChildrenFromSelectionSet(subSelectionSet)
-            )
+    selectionSet.selections
+        .filterIsInstance<GraphQLField>()
+        .map { selection ->
+            val subSelectionSet = selection.selectionSet
+            if (subSelectionSet == null) {
+                InternalQueryNode.Attribute(
+                    graphQLFieldName = selection.name,
+                    graphQLAlias = selection.alias ?: selection.name
+                )
+            } else {
+                InternalQueryNode.Relation(
+                    graphQLFieldName = selection.name,
+                    graphQLAlias = selection.alias ?: selection.name,
+                    sqlAlias = "${selection.name}-${UUID.randomUUID()}",
+                    fieldTypeInfo = getFieldTypeInfo(schema, selection.name),
+                    children = getChildrenFromSelectionSet(subSelectionSet),
+                    arguments = selection.arguments
+                )
+            }
         }
-    }
 
-fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Condition = DSL.noCondition()): Field<Result<Record>> {
+fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition: Condition = DSL.noCondition()): Field<Result<Record>> {
     val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
     val attributeNames = attributes.map { attribute -> DSL.field(attribute.graphQLFieldName).`as`(attribute.graphQLAlias) }
     // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
@@ -66,7 +75,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Co
     val subSelects = relations.map { subRelation ->
         val innerTable = getTableWithAlias(subRelation as InternalQueryNode.Relation)
         resolveInternalQueryTree(
-            subRelation, WhereCondition.getFor(subRelation.graphQLFieldName, outerTable, innerTable)
+            subRelation, WhereCondition.getForRelationship(subRelation.graphQLFieldName, outerTable, innerTable)
         )
     }
 
@@ -74,7 +83,8 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, condition: Co
         DSL.select(attributeNames)
             .select(subSelects)
             .from(outerTable)
-            .where(condition)
+            .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+            .and(joinCondition)
     ).`as`(relation.graphQLAlias + if (relation.fieldTypeInfo.isList) "" else OBJECT_SUFFIX)
 }
 
