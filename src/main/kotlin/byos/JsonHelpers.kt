@@ -23,7 +23,7 @@ private fun unwrapSingletonArraysRecursively(node: JsonNode): JsonNode =
                     { fieldName ->
                         val fieldNode = node.get(fieldName)
                         if (fieldName.endsWith(OBJECT_SUFFIX) && fieldNode.isArray) {
-                            unwrapSingletonArray(fieldNode)
+                            unwrapSingletonArray(fieldNode)?.let { unwrapSingletonArraysRecursively(it) }
                         } else {
                             unwrapSingletonArraysRecursively(fieldNode)
                         }
