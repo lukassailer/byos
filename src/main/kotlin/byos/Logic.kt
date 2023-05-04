@@ -100,13 +100,11 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
             )
         ).`as`(relation.graphQLAlias)
     } else {
-        return DSL.field(
+        DSL.field(
             DSL.select(
-                DSL.coalesce(
-                    DSL.jsonObject(
-                        *attributeNames.toTypedArray(),
-                        *subSelects.toTypedArray()
-                    )
+                DSL.jsonObject(
+                    *attributeNames.toTypedArray(),
+                    *subSelects.toTypedArray()
                 )
             ).from(
                 DSL.select(attributeNames)
