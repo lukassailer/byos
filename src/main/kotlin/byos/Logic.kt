@@ -79,25 +79,44 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
-    return DSL.field(
-        DSL.select(
-            DSL.coalesce(
-                DSL.jsonArrayAgg(
+    return if (relation.fieldTypeInfo.isList) {
+        DSL.field(
+            DSL.select(
+                DSL.coalesce(
+                    DSL.jsonArrayAgg(
+                        DSL.jsonObject(
+                            *attributeNames.toTypedArray(),
+                            *subSelects.toTypedArray()
+                        )
+                    ),
+                    DSL.jsonArray()
+                )
+            ).from(
+                DSL.select(attributeNames)
+                    .select(subSelects)
+                    .from(outerTable)
+                    .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+                    .and(joinCondition)
+            )
+        ).`as`(relation.graphQLAlias)
+    } else {
+        return DSL.field(
+            DSL.select(
+                DSL.coalesce(
                     DSL.jsonObject(
                         *attributeNames.toTypedArray(),
                         *subSelects.toTypedArray()
                     )
-                ),
-                DSL.jsonArray()
+                )
+            ).from(
+                DSL.select(attributeNames)
+                    .select(subSelects)
+                    .from(outerTable)
+                    .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+                    .and(joinCondition)
             )
-        ).from(
-            DSL.select(attributeNames)
-                .select(subSelects)
-                .from(outerTable)
-                .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
-                .and(joinCondition)
-        )
-    ).`as`(relation.graphQLAlias + if (relation.fieldTypeInfo.isList) "" else OBJECT_SUFFIX)
+        ).`as`(relation.graphQLAlias)
+    }
 }
 
 private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
