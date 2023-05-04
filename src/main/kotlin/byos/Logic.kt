@@ -14,12 +14,12 @@ import graphql.schema.idl.SchemaGenerator
 import graphql.schema.idl.SchemaParser
 import org.jooq.Condition
 import org.jooq.Field
-import org.jooq.Record
-import org.jooq.Result
+import org.jooq.JSON
 import org.jooq.impl.DSL
 import java.io.File
 import java.util.UUID
 import graphql.language.Field as GraphQLField
+
 
 private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
 private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
@@ -66,7 +66,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<Intern
             }
         }
 
-fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition: Condition = DSL.noCondition()): Field<Result<Record>> {
+fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition: Condition = DSL.noCondition()): Field<JSON> {
     val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
     val attributeNames = attributes.map { attribute -> DSL.field(attribute.graphQLFieldName).`as`(attribute.graphQLAlias) }
     // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
@@ -79,12 +79,24 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
-    return DSL.multiset(
-        DSL.select(attributeNames)
-            .select(subSelects)
-            .from(outerTable)
-            .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
-            .and(joinCondition)
+    return DSL.field(
+        DSL.select(
+            DSL.coalesce(
+                DSL.jsonArrayAgg(
+                    DSL.jsonObject(
+                        *attributeNames.toTypedArray(),
+                        *subSelects.toTypedArray()
+                    )
+                ),
+                DSL.jsonArray()
+            )
+        ).from(
+            DSL.select(attributeNames)
+                .select(subSelects)
+                .from(outerTable)
+                .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+                .and(joinCondition)
+        )
     ).`as`(relation.graphQLAlias + if (relation.fieldTypeInfo.isList) "" else OBJECT_SUFFIX)
 }
 
