@@ -53,7 +53,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -102,7 +102,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -127,7 +127,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -176,7 +176,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -272,7 +272,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -328,7 +328,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -355,7 +355,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -382,7 +382,7 @@ class ByosApplicationTest(
             }
             """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 
     @Test
@@ -490,6 +490,6 @@ class ByosApplicationTest(
             }
         """
 
-        assertEqualsIgnoringOrder(expectedResult, result)
+        assertJsonEquals(expectedResult, result)
     }
 }

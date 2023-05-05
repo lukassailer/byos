@@ -97,6 +97,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                     .from(outerTable)
                     .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
                     .and(joinCondition)
+                    .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
             )
         ).`as`(relation.graphQLAlias)
     } else {
@@ -112,6 +113,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                     .from(outerTable)
                     .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
                     .and(joinCondition)
+                    .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
             )
         ).`as`(relation.graphQLAlias)
     }
