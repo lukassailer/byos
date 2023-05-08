@@ -79,33 +79,47 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
-    return DSL.field(
-        DSL.select(
-            if (relation.fieldTypeInfo.isList) {
+    return if (relation.fieldTypeInfo.isList) {
+        DSL.field(
+            DSL.select(
                 DSL.coalesce(
                     DSL.jsonArrayAgg(
                         DSL.jsonObject(
-                            *attributeNames.toTypedArray(),
-                            *subSelects.toTypedArray()
+                            "node",
+                            DSL.jsonObject(
+                                *attributeNames.toTypedArray(),
+                                *subSelects.toTypedArray()
+                            )
                         )
                     ),
                     DSL.jsonArray()
                 )
-            } else {
+            ).from(
+                DSL.select(attributeNames)
+                    .select(subSelects)
+                    .from(outerTable)
+                    .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+                    .and(joinCondition)
+                    .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
+            )
+        ).`as`(relation.graphQLAlias)
+    } else {
+        DSL.field(
+            DSL.select(
                 DSL.jsonObject(
                     *attributeNames.toTypedArray(),
                     *subSelects.toTypedArray()
                 )
-            }
-        ).from(
-            DSL.select(attributeNames)
-                .select(subSelects)
-                .from(outerTable)
-                .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
-                .and(joinCondition)
-                .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
-        )
-    ).`as`(relation.graphQLAlias)
+            ).from(
+                DSL.select(attributeNames)
+                    .select(subSelects)
+                    .from(outerTable)
+                    .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+                    .and(joinCondition)
+                    .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
+            )
+        ).`as`(relation.graphQLAlias)
+    }
 }
 
 private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
