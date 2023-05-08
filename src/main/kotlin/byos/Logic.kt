@@ -82,17 +82,20 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     return if (relation.fieldTypeInfo.isList) {
         DSL.field(
             DSL.select(
-                DSL.coalesce(
-                    DSL.jsonArrayAgg(
-                        DSL.jsonObject(
-                            "node",
+                DSL.jsonObject(
+                    "edges",
+                    DSL.coalesce(
+                        DSL.jsonArrayAgg(
                             DSL.jsonObject(
-                                *attributeNames.toTypedArray(),
-                                *subSelects.toTypedArray()
+                                "node",
+                                DSL.jsonObject(
+                                    *attributeNames.toTypedArray(),
+                                    *subSelects.toTypedArray()
+                                )
                             )
-                        )
-                    ),
-                    DSL.jsonArray()
+                        ),
+                        DSL.jsonArray()
+                    )
                 )
             ).from(
                 DSL.select(attributeNames)

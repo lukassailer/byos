@@ -27,28 +27,38 @@ class ByosApplicationTest(
         val expectedResult = """
             {
               "data": {
-                "allBooks": [
-                  {
-                    "id": 1,
-                    "title": "1984",
-                    "publishedin": 1948
-                  },
-                  {
-                    "id": 2,
-                    "title": "Animal Farm",
-                    "publishedin": 1945
-                  },
-                  {
-                    "id": 3,
-                    "title": "O Alquimista",
-                    "publishedin": 1988
-                  },
-                  {
-                    "id": 4,
-                    "title": "Brida",
-                    "publishedin": 1990
-                  }
-                ]
+                "allBooks": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": 1,
+                        "title": "1984",
+                        "publishedin": 1948
+                      }
+                    },
+                    {
+                      "node": {
+                        "id": 2,
+                        "title": "Animal Farm",
+                        "publishedin": 1945
+                      }
+                    },
+                    {
+                      "node": {
+                        "id": 3,
+                        "title": "O Alquimista",
+                        "publishedin": 1988
+                      }
+                    },
+                    {
+                      "node": {
+                        "id": 4,
+                        "title": "Brida",
+                        "publishedin": 1990
+                      }
+                    }
+                  ]
+                }
               }
             }
             """
@@ -72,35 +82,53 @@ class ByosApplicationTest(
         val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
-            {
-              "data": {
-                "allAuthors": [
-                  {
+        {
+          "data": {
+            "allAuthors": {
+              "edges": [
+                {
+                  "node": {
                     "lastName": "Orwell",
-                    "books": [
-                      { 
-                        "title": "1984"
-                      },
-                      {
-                        "title": "Animal Farm"
-                      }
-                    ]
-                  },
-                  {
-                    "lastName": "Coelho",
-                    "books": [
-                      {
-                        "title": "O Alquimista"
-                      },
-                      {
-                        "title": "Brida"
-                      }
-                    ]
+                    "books": {
+                      "edges": [
+                        {
+                          "node": {
+                            "title": "1984"
+                          }
+                        },
+                        {
+                          "node": {
+                            "title": "Animal Farm"
+                          }
+                        }
+                      ]
+                    }
                   }
-                ]
-              }
+                },
+                {
+                  "node": {
+                    "lastName": "Coelho",
+                    "books": {
+                      "edges": [
+                        {
+                          "node": {
+                            "title": "O Alquimista"
+                          }
+                        },
+                        {
+                          "node": {
+                            "title": "Brida"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
             }
-            """
+          }
+        }
+        """
 
         assertJsonEquals(expectedResult, result)
     }
@@ -148,30 +176,40 @@ class ByosApplicationTest(
         val expectedResult = """
             {
               "data": {
-                "allOrders": [
-                  {
-                    "order_id": 1,
-                    "user": null
-                  },
-                  {
-                    "order_id": 2,
-                    "user": {
-                      "user_id": 1
+                "allOrders": {
+                  "edges": [
+                    {
+                      "node": {
+                        "order_id": 1,
+                        "user": null
+                      }
+                    },
+                    {
+                      "node": {
+                        "order_id": 2,
+                        "user": {
+                          "user_id": 1
+                        }
+                      }
+                    },
+                    {
+                      "node": {
+                        "order_id": 3,
+                        "user": {
+                          "user_id": 1
+                        }
+                      }
+                    },
+                    {
+                      "node": {
+                        "order_id": 4,
+                        "user": {
+                          "user_id": 2
+                        }
+                      }
                     }
-                  },
-                  {
-                    "order_id": 3,
-                    "user": {
-                      "user_id": 1
-                    }
-                  },
-                  {
-                    "order_id": 4,
-                    "user": {
-                      "user_id": 2
-                    }
-                  }
-                ]
+                  ]
+                }
               }
             }
             """
@@ -208,66 +246,82 @@ class ByosApplicationTest(
         val expectedResult = """
             {
               "data": {
-                "allTrees": [
-                  {
-                    "label": "A",
-                    "parent": null,
-                    "children": [
-                      {
-                        "label": "B"
-                      },
-                      {
-                        "label": "C"
+                "allTrees": {
+                  "edges": [
+                    {
+                      "node": {
+                        "label": "A",
+                        "parent": null,
+                        "children": {
+                            "edges": [
+                                { "node": { "label": "B" } },
+                                { "node": { "label": "C" } }
+                            ]
+                        }
                       }
-                    ]
-                  },
-                  {
-                    "label": "B",
-                    "parent": {
-                      "label": "A"
                     },
-                    "children": [
-                      {
-                        "label": "D"
-                      },
-                      {
-                        "label": "E"
+                    {
+                      "node": {
+                        "label": "B",
+                        "parent": {
+                          "label": "A"
+                        },
+                        "children": {
+                            "edges": [
+                                { "node": { "label": "D" } },
+                                { "node": { "label": "E" } }
+                            ]
+                        }
                       }
-                    ]
-                  },
-                  {
-                    "label": "C",
-                    "parent": {
-                      "label": "A"
                     },
-                    "children": [
-                      {
-                        "label": "F"
+                    {
+                      "node": {
+                        "label": "C",
+                        "parent": {
+                          "label": "A"
+                        },
+                        "children": {
+                            "edges": [
+                                { "node": { "label": "F" } }
+                            ]
+                        }
                       }
-                    ]
-                  },
-                  {
-                    "label": "D",
-                    "parent": {
-                      "label": "B"
                     },
-                    "children": []
-                  },
-                  {
-                    "label": "E",
-                    "parent": {
-                      "label": "B"
+                    {
+                      "node": {
+                        "label": "D",
+                        "parent": {
+                          "label": "B"
+                        },
+                        "children": {
+                          "edges": []
+                        }
+                      }
                     },
-                    "children": []
-                  },
-                  {
-                    "label": "F",
-                    "parent": {
-                      "label": "C"
+                    {
+                      "node": {
+                        "label": "E",
+                        "parent": {
+                          "label": "B"
+                        },
+                        "children": {
+                          "edges": []
+                        }
+                      }
                     },
-                    "children": []
-                  }
-                ]
+                    {
+                      "node": {
+                        "label": "F",
+                        "parent": {
+                          "label": "C"
+                        },
+                        "children": {
+                          "edges": []
+                        }
+                      }
+                    }
+                  ]
+                }
               }
             }
             """
@@ -294,39 +348,50 @@ class ByosApplicationTest(
         val expectedResult = """
             {
               "data": {
-                "novel": [
-                  {
-                    "nid": 1,
-                    "id": 1,
-                    "writer": {
-                      "id": 1
+                "novel": {
+                  "edges": [
+                    {
+                      "node": {
+                        "nid": 1,
+                        "id": 1,
+                        "writer": {
+                          "id": 1
+                        }
+                      }
+                    },
+                    {
+                      "node": {
+                        "nid": 2,
+                        "id": 2,
+                        "writer": {
+                          "id": 1
+                        }
+                      }
+                    },
+                    {
+                      "node": {
+                        "nid": 3,
+                        "id": 3,
+                        "writer": {
+                          "id": 2
+                        }
+                      }
+                    },
+                    {
+                      "node": {
+                        "nid": 4,
+                        "id": 4,
+                        "writer": {
+                          "id": 2
+                        }
+                      }
                     }
-                  },
-                  {
-                    "nid": 2,
-                    "id": 2,
-                    "writer": {
-                      "id": 1
-                    }
-                  },
-                  {
-                    "nid": 3,
-                    "id": 3,
-                    "writer": {
-                      "id": 2
-                    }
-                  },
-                  {
-                    "nid": 4,
-                    "id": 4,
-                    "writer": {
-                      "id": 2
-                    }
-                  }
-                ]
+                  ]
+                }
               }
             }
             """
+
 
         assertJsonEquals(expectedResult, result)
     }
@@ -407,87 +472,131 @@ class ByosApplicationTest(
         val result = graphQLService.executeGraphQLQuery(query)
 
         val expectedResult = """
-            {
-              "data": {
-                "allBookStores": [
-                  {
+        {
+          "data": {
+            "allBookStores": {
+              "edges": [
+                {
+                  "node": {
                     "name": "Orell Füssli",
-                    "books": [
-                      {
-                        "title": "1984"
-                      },
-                      {
-                        "title": "Animal Farm"
-                      },
-                      {
-                        "title": "O Alquimista"
-                      }
-                    ],
-                    "b2b": [
-                      {
-                        "stock": 10,
-                        "book": {
-                          "title": "1984"
+                    "books": {
+                      "edges": [
+                        {
+                          "node": {
+                            "title": "1984"
+                          }
+                        },
+                        {
+                          "node": {
+                            "title": "Animal Farm"
+                          }
+                        },
+                        {
+                          "node": {
+                            "title": "O Alquimista"
+                          }
                         }
-                      },
-                      {
-                        "stock": 10,
-                        "book": {
-                          "title": "Animal Farm"
+                      ]
+                    },
+                    "b2b": {
+                      "edges": [
+                        {
+                          "node": {
+                            "stock": 10,
+                            "book": {
+                              "title": "1984"
+                            }
+                          }
+                        },
+                        {
+                          "node": {
+                            "stock": 10,
+                            "book": {
+                              "title": "Animal Farm"
+                            }
+                          }
+                        },
+                        {
+                          "node": {
+                            "stock": 10,
+                            "book": {
+                              "title": "O Alquimista"
+                            }
+                          }
                         }
-                      },
-                      {
-                        "stock": 10,
-                        "book": {
-                          "title": "O Alquimista"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "name": "Ex Libris",
-                    "books": [
-                      {
-                        "title": "1984"
-                      },
-                      {
-                        "title": "O Alquimista"
-                      }
-                    ],
-                    "b2b": [
-                      {
-                        "stock": 1,
-                        "book": {
-                          "title": "1984"
-                        }
-                      },
-                      {
-                        "stock": 2,
-                        "book": {
-                          "title": "O Alquimista"
-                        }
-                      }
-                    ]
-                  },
-                  {
-                    "name": "Buchhandlung im Volkshaus",
-                    "books": [
-                      {
-                        "title": "O Alquimista"
-                      }
-                    ],
-                    "b2b": [
-                      {
-                        "stock": 1,
-                        "book": {
-                          "title": "O Alquimista"
-                        }
-                      }
-                    ]
+                      ]
+                    }
                   }
-                ]
-              }
+                },
+                {
+                  "node": {
+                    "name": "Ex Libris",
+                    "books": {
+                      "edges": [
+                        {
+                          "node": {
+                            "title": "1984"
+                          }
+                        },
+                        {
+                          "node": {
+                            "title": "O Alquimista"
+                          }
+                        }
+                      ]
+                    },
+                    "b2b": {
+                      "edges": [
+                        {
+                          "node": {
+                            "stock": 1,
+                            "book": {
+                              "title": "1984"
+                            }
+                          }
+                        },
+                        {
+                          "node": {
+                            "stock": 2,
+                            "book": {
+                              "title": "O Alquimista"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "node": {
+                    "name": "Buchhandlung im Volkshaus",
+                    "books": {
+                      "edges": [
+                        {
+                          "node": {
+                            "title": "O Alquimista"
+                          }
+                        }
+                      ]
+                    },
+                    "b2b": {
+                      "edges": [
+                        {
+                          "node": {
+                            "stock": 1,
+                            "book": {
+                              "title": "O Alquimista"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
             }
+          }
+        }
         """
 
         assertJsonEquals(expectedResult, result)
