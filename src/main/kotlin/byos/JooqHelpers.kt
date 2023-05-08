@@ -41,16 +41,14 @@ class PrettyPrinter : ExecuteListener {
 }
 
 // unwrap singletons and wrap in data object
-fun List<Formattable>.formatGraphQLResponse(): String {
-    val json = this.map { it.formatJSON(GRAPHQL_FORMAT) }
+fun List<Formattable>.formatGraphQLResponse(): String =
+    map { it.formatJSON(GRAPHQL_FORMAT) }
         .joinToString(
             separator = ",",
             prefix = "{\"data\":{",
             postfix = "}}",
             transform = { it.substring(2, it.length - 2) }
         )
-    return unwrapSingletonArrays(json)
-}
 
 val GRAPHQL_FORMAT = JSONFormat()
     .header(false)
