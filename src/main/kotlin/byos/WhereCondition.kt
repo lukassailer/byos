@@ -46,13 +46,14 @@ object WhereCondition {
 
             else -> error("No relationship called $relationshipName found for tables $left and $right")
         }
-    
+
     fun getForArgument(argument: Argument, table: Table<*>): Condition {
         val field = table.field(argument.name) as Field<Any>?
             ?: error("No field called ${argument.name} found for table $table")
 
         return when (val value = extractValue(argument.value)) {
             is List<*> -> field.`in`(value)
+            null -> field.isNull
             else -> field.eq(value)
         }
     }

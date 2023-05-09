@@ -9,6 +9,7 @@ type Query {
     allTrees(first: Int): TreeConnection!
     allBookStores(first: Int): BookStoreConnection!
     booksByYear(publishedin: Int!, first: Int): BookConnection!
+    distinguishedAuthors(distinguished: Boolean): [Author!]!
 }
 
 type Test {
