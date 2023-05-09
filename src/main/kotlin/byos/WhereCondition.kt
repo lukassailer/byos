@@ -1,10 +1,12 @@
 package byos
 
+import db.jooq.generated.Tables.BOOK
 import db.jooq.generated.Tables.BOOK_TO_BOOKSTORE
 import db.jooq.generated.tables.Author
 import db.jooq.generated.tables.Book
 import db.jooq.generated.tables.BookToBookstore
 import db.jooq.generated.tables.Bookstore
+import db.jooq.generated.tables.Language
 import db.jooq.generated.tables.Shoporder
 import db.jooq.generated.tables.Shopuser
 import db.jooq.generated.tables.Tree
@@ -37,15 +39,18 @@ object WhereCondition {
 
             relationshipName == "b2b" && left is Bookstore && right is BookToBookstore -> left.NAME.eq(right.NAME)
             relationshipName == "book" && left is BookToBookstore && right is Book -> left.BOOKID.eq(right.ID)
+            relationshipName == "language" && left is Book && right is Language -> left.LANGUAGEID.eq(right.ID)
+            relationshipName == "publicationLanguages" && left is Author && right is Language -> DSL.exists(
+                DSL.selectOne().from(BOOK).where(left.ID.eq(BOOK.AUTHORID).and(BOOK.LANGUAGEID.eq(right.ID)))
+            )
 
             else -> error("No relationship called $relationshipName found for tables $left and $right")
         }
-
-    // TODO: Use GraphQL Schema to get the type of the field
+    
     fun getForArgument(argument: Argument, table: Table<*>): Condition {
         val field = table.field(argument.name) as Field<Any>?
             ?: error("No field called ${argument.name} found for table $table")
-        
+
         return when (val value = extractValue(argument.value)) {
             is List<*> -> field.`in`(value)
             else -> field.eq(value)

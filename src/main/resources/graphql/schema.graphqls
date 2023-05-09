@@ -20,6 +20,7 @@ type Book {
     title: String!
     publishedin: Int!
     author: Author!
+    language: Language!
 }
 
 type BookConnection {
@@ -37,6 +38,7 @@ type Author {
     lastName: String!
     books(first: Int): BookConnection!
     distinguished: Boolean
+    publicationLanguages: [Language!]!
 }
 
 type BookStore {
