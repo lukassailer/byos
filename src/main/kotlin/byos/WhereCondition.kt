@@ -52,7 +52,7 @@ object WhereCondition {
             ?: error("No field called ${argument.name} found for table $table")
 
         return when (val value = extractValue(argument.value)) {
-            is List<*> -> field.`in`(value)
+            is List<*> -> field.`in`(value).or(if (value.contains(null)) field.isNull else DSL.noCondition())
             null -> field.isNull
             else -> field.eq(value)
         }

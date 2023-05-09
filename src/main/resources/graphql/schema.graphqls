@@ -10,6 +10,7 @@ type Query {
     allBookStores(first: Int): BookStoreConnection!
     booksByYear(publishedin: Int!, first: Int): BookConnection!
     distinguishedAuthors(distinguished: Boolean): [Author!]!
+    distinguishedAuthorsList(distinguished: [Boolean]!): [Author!]!
 }
 
 type Test {
