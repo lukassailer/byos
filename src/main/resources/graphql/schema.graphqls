@@ -1,14 +1,14 @@
 type Query {
     allAuthors: [Author!]!
     authorById(id: ID!): Author
-    authorsByIds(id: [ID!]!): [Author!]!
-    allBooks: [Book!]!
+    authorsByIds(id: [ID!]!): [[Author]]!
+    allBooks(first: Int): BookConnection!
     test: Test!
-    allOrders: [ShopOrder!]!
-    allUsers: [ShopUser!]!
-    allTrees: [Tree!]!
-    allBookStores: [BookStore!]!
-    booksByYear(publishedin: Int!): [Book!]!
+    allOrders(first: Int): ShopOrderConnection!
+    allUsers(first: Int): ShopUserConnection!
+    allTrees(first: Int): TreeConnection!
+    allBookStores(first: Int): BookStoreConnection!
+    booksByYear(publishedin: Int!, first: Int): BookConnection!
 }
 
 type Test {
@@ -22,23 +22,48 @@ type Book {
     author: Author!
 }
 
+type BookConnection {
+    edges: [BookEdge!]!
+}
+
+type BookEdge {
+    node: Book!
+}
+
+# example for connection without pagination
 type Author {
     id: ID!
     firstName: String
     lastName: String!
-    books: [Book!]!
+    books(first: Int): BookConnection!
     distinguished: Boolean
 }
 
 type BookStore {
     name: String!
-    books: [Book!]!
-    b2b: [Book_To_Bookstore!]!
+    books(first: Int): BookConnection!
+    b2b: B2BConnection!
+}
+
+type BookStoreConnection {
+    edges: [BookStoreEdge!]!
+}
+
+type BookStoreEdge {
+    node: BookStore!
 }
 
 type Book_To_Bookstore {
     book: Book!
     stock: Int
+}
+
+type B2BConnection {
+    edges: [B2BEdge!]!
+}
+
+type B2BEdge {
+    node: Book_To_Bookstore!
 }
 
 type Language {
@@ -51,7 +76,15 @@ type ShopUser {
     user_id: ID!
     username: String!
     email: String!
-    orders: [ShopOrder!]!
+    orders(first: Int): ShopOrderConnection!
+}
+
+type ShopUserConnection {
+    edges: [ShopUserEdge!]!
+}
+
+type ShopUserEdge {
+    node: ShopUser!
 }
 
 type ShopOrder {
@@ -61,9 +94,25 @@ type ShopOrder {
     order_date: String!
 }
 
+type ShopOrderConnection {
+    edges: [ShopOrderEdge!]!
+}
+
+type ShopOrderEdge {
+    node: ShopOrder!
+}
+
 type Tree {
     id: ID!
     label: String!
     parent: Tree
-    children: [Tree!]!
+    children(first: Int): TreeConnection!
+}
+
+type TreeConnection {
+    edges: [TreeEdge!]!
+}
+
+type TreeEdge {
+    node: Tree!
 }

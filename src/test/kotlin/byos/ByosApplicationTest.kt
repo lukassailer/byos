@@ -84,48 +84,42 @@ class ByosApplicationTest(
         val expectedResult = """
         {
           "data": {
-            "allAuthors": {
-              "edges": [
-                {
-                  "node": {
-                    "lastName": "Orwell",
-                    "books": {
-                      "edges": [
-                        {
-                          "node": {
-                            "title": "1984"
-                          }
-                        },
-                        {
-                          "node": {
-                            "title": "Animal Farm"
-                          }
-                        }
-                      ]
+            "allAuthors": [
+              {
+                "lastName": "Orwell",
+                "books": {
+                  "edges": [
+                    {
+                      "node": {
+                        "title": "1984"
+                      }
+                    },
+                    {
+                      "node": {
+                        "title": "Animal Farm"
+                      }
                     }
-                  }
-                },
-                {
-                  "node": {
-                    "lastName": "Coelho",
-                    "books": {
-                      "edges": [
-                        {
-                          "node": {
-                            "title": "O Alquimista"
-                          }
-                        },
-                        {
-                          "node": {
-                            "title": "Brida"
-                          }
-                        }
-                      ]
-                    }
-                  }
+                  ]
                 }
-              ]
-            }
+              },
+              {
+                "lastName": "Coelho",
+                "books": {
+                  "edges": [
+                    {
+                      "node": {
+                        "title": "O Alquimista"
+                      }
+                    },
+                    {
+                      "node": {
+                        "title": "Brida"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
           }
         }
         """

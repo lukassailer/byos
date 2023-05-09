@@ -79,23 +79,36 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
+// TODO if paginated:
+//    DSL.field(
+//        DSL.select(
+//            DSL.jsonObject(
+//                "edges",
+//                DSL.coalesce(
+//                    DSL.jsonArrayAgg(
+//                        DSL.jsonObject(
+//                            "node",
+//                            DSL.jsonObject(
+//                                *attributeNames.toTypedArray(),
+//                                *subSelects.toTypedArray()
+//                            )
+//                        )
+//                    ),
+//                    DSL.jsonArray()
+//                )
+//            )
+//        )
     return if (relation.fieldTypeInfo.isList) {
         DSL.field(
             DSL.select(
-                DSL.jsonObject(
-                    "edges",
-                    DSL.coalesce(
-                        DSL.jsonArrayAgg(
-                            DSL.jsonObject(
-                                "node",
-                                DSL.jsonObject(
-                                    *attributeNames.toTypedArray(),
-                                    *subSelects.toTypedArray()
-                                )
-                            )
-                        ),
-                        DSL.jsonArray()
-                    )
+                DSL.coalesce(
+                    DSL.jsonArrayAgg(
+                        DSL.jsonObject(
+                            *attributeNames.toTypedArray(),
+                            *subSelects.toTypedArray()
+                        )
+                    ),
+                    DSL.jsonArray()
                 )
             ).from(
                 DSL.select(attributeNames)
