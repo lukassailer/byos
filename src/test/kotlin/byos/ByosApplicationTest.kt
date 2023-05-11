@@ -13,13 +13,17 @@ class ByosApplicationTest(
     @Test
     fun `simple query`() {
         val query = """
-            query {
-              allBooks {
+        query {
+          allBooks {
+            edges {
+              node {
                 id
                 title
                 publishedin
               }
             }
+          }
+        }
         """
 
         val result = graphQLService.executeGraphQLQuery(query)
@@ -69,14 +73,18 @@ class ByosApplicationTest(
     @Test
     fun `simple query with more depth`() {
         val query = """
-            query {
-              allAuthors {
-                lastName
-                books {
+        query {
+          allAuthors {
+            lastName
+            books {
+              edges {
+                node {
                   title
                 }
               }
             }
+          }
+        }
         """
 
         val result = graphQLService.executeGraphQLQuery(query)
@@ -155,14 +163,18 @@ class ByosApplicationTest(
     @Test
     fun `query returning null`() {
         val query = """
-            query {
-              allOrders {
+        query {
+          allOrders {
+            edges {
+              node {
                 order_id
                 user {
                   user_id
                 }
               }
             }
+          }
+        }
         """
 
         val result = graphQLService.executeGraphQLQuery(query)
@@ -222,17 +234,25 @@ class ByosApplicationTest(
 
          */
         val query = """
-            query {
-              allTrees {
+        query {
+          allTrees {
+            edges {
+              node {
                 label
                 parent {
                   label
                 }
                 children {
-                  label
+                  edges {
+                    node {
+                      label
+                    }
+                  }
                 }
               }
             }
+          }
+        }
         """
 
         val result = graphQLService.executeGraphQLQuery(query)
@@ -326,15 +346,19 @@ class ByosApplicationTest(
     @Test
     fun `query with alias`() {
         val query = """
-            query {
-              novel: allBooks {
+        query {
+          novel: allBooks {
+            edges {
+              node {
                 nid: id
                 id
-                writer: author{
+                writer: author {
                   id: id
                 }
               }
             }
+          }
+        }
         """
 
         val result = graphQLService.executeGraphQLQuery(query)
@@ -447,20 +471,32 @@ class ByosApplicationTest(
     @Test
     fun `n to m relation two ways`() {
         val query = """
-            query {
-              allBookStores {
+        query {
+          allBookStores {
+            edges {
+              node {
                 name
                 books {
-                  title
+                  edges {
+                    node {
+                      title
+                    }
+                  }
                 }
                 b2b {
-                  stock
-                  book {
-                    title
+                  edges {
+                    node {
+                      stock
+                      book {
+                        title
+                      }
+                    }
                   }
                 }
               }
             }
+          }
+        }
         """
 
         val result = graphQLService.executeGraphQLQuery(query)
