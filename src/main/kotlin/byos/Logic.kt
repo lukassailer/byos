@@ -47,8 +47,8 @@ sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: S
     class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 }
 
-data class FieldTypeInfo(val fieldName: String, val isList: Boolean) {
-    val relationName = fieldName.lowercase()
+data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
+    val relationName = graphQLTypeName.lowercase()
 }
 
 fun buildInternalQueryTree(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
@@ -72,16 +72,17 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                     val nodeSelection = edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().single { it.name == "node" }
                     val nodeSubSelectionSet = nodeSelection.selectionSet
 
+                    // TODO alias
                     val queryTypeInfo = getFieldTypeInfo(schema, selection.name, parentGraphQlTypeName)
-                    val edgesTypeInfo = getFieldTypeInfo(schema, edgesSelection.name, queryTypeInfo.fieldName)
-                    val nodeTypeInfo = getFieldTypeInfo(schema, nodeSelection.name, edgesTypeInfo.fieldName)
+                    val edgesTypeInfo = getFieldTypeInfo(schema, edgesSelection.name, queryTypeInfo.graphQLTypeName)
+                    val nodeTypeInfo = getFieldTypeInfo(schema, nodeSelection.name, edgesTypeInfo.graphQLTypeName)
 
                     InternalQueryNode.Relation.RelationWithPagination(
                         graphQLFieldName = selection.name,
                         graphQLAlias = selection.alias ?: selection.name,
                         sqlAlias = "${selection.name}-${UUID.randomUUID()}",
                         fieldTypeInfo = nodeTypeInfo,
-                        children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.fieldName),
+                        children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
                         arguments = selection.arguments
                     )
                 }
@@ -93,7 +94,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         graphQLAlias = selection.alias ?: selection.name,
                         sqlAlias = "${selection.name}-${UUID.randomUUID()}",
                         fieldTypeInfo = fieldTypeInfo,
-                        children = getChildrenFromSelectionSet(subSelectionSet, fieldTypeInfo.fieldName),
+                        children = getChildrenFromSelectionSet(subSelectionSet, fieldTypeInfo.graphQLTypeName),
                         arguments = selection.arguments
                     )
                 }
