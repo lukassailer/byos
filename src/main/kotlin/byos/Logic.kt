@@ -25,24 +25,15 @@ private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
 private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
 
 sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: String) {
-    open class Relation(
+    class Relation(
         graphQLFieldName: String,
         graphQLAlias: String,
         val sqlAlias: String,
         val fieldTypeInfo: FieldTypeInfo,
         val children: List<InternalQueryNode>,
-        val arguments: List<Argument>
-    ) : InternalQueryNode(graphQLFieldName, graphQLAlias) {
-
-        class RelationWithPagination(
-            graphQLFieldName: String,
-            graphQLAlias: String,
-            sqlAlias: String,
-            fieldTypeInfo: FieldTypeInfo,
-            children: List<InternalQueryNode>,
-            arguments: List<Argument>
-        ) : Relation(graphQLFieldName, graphQLAlias, sqlAlias, fieldTypeInfo, children, arguments)
-    }
+        val arguments: List<Argument>,
+        val isPaginated: Boolean
+    ) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 
     class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 }
@@ -77,13 +68,14 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                     val edgesTypeInfo = getFieldTypeInfo(schema, edgesSelection.name, queryTypeInfo.graphQLTypeName)
                     val nodeTypeInfo = getFieldTypeInfo(schema, nodeSelection.name, edgesTypeInfo.graphQLTypeName)
 
-                    InternalQueryNode.Relation.RelationWithPagination(
+                    InternalQueryNode.Relation(
                         graphQLFieldName = selection.name,
                         graphQLAlias = selection.alias ?: selection.name,
                         sqlAlias = "${selection.name}-${UUID.randomUUID()}",
                         fieldTypeInfo = nodeTypeInfo,
                         children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
-                        arguments = selection.arguments
+                        arguments = selection.arguments,
+                        isPaginated = true
                     )
                 }
 
@@ -95,7 +87,8 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         sqlAlias = "${selection.name}-${UUID.randomUUID()}",
                         fieldTypeInfo = fieldTypeInfo,
                         children = getChildrenFromSelectionSet(subSelectionSet, fieldTypeInfo.graphQLTypeName),
-                        arguments = selection.arguments
+                        arguments = selection.arguments,
+                        isPaginated = false
                     )
                 }
             }
@@ -116,37 +109,43 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 
     return DSL.field(
         DSL.select(
-            if (relation is InternalQueryNode.Relation.RelationWithPagination) {
-                DSL.jsonObject(
-                    "edges",
+            when {
+                relation.isPaginated -> {
+                    DSL.jsonObject(
+                        "edges",
+                        DSL.coalesce(
+                            DSL.jsonArrayAgg(
+                                DSL.jsonObject(
+                                    "node",
+                                    DSL.jsonObject(
+                                        *attributeNames.toTypedArray(),
+                                        *subSelects.toTypedArray()
+                                    )
+                                )
+                            ),
+                            DSL.jsonArray()
+                        )
+                    )
+                }
+
+                relation.fieldTypeInfo.isList -> {
                     DSL.coalesce(
                         DSL.jsonArrayAgg(
                             DSL.jsonObject(
-                                "node",
-                                DSL.jsonObject(
-                                    *attributeNames.toTypedArray(),
-                                    *subSelects.toTypedArray()
-                                )
+                                *attributeNames.toTypedArray(),
+                                *subSelects.toTypedArray()
                             )
                         ),
                         DSL.jsonArray()
                     )
-                )
-            } else if (relation.fieldTypeInfo.isList) {
-                DSL.coalesce(
-                    DSL.jsonArrayAgg(
-                        DSL.jsonObject(
-                            *attributeNames.toTypedArray(),
-                            *subSelects.toTypedArray()
-                        )
-                    ),
-                    DSL.jsonArray()
-                )
-            } else {
-                DSL.jsonObject(
-                    *attributeNames.toTypedArray(),
-                    *subSelects.toTypedArray()
-                )
+                }
+
+                else -> {
+                    DSL.jsonObject(
+                        *attributeNames.toTypedArray(),
+                        *subSelects.toTypedArray()
+                    )
+                }
             }
         ).from(
             DSL.select(attributeNames)
