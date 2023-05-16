@@ -38,7 +38,7 @@ type Author {
     id: ID!
     firstName: String
     lastName: String!
-    books(first: Int): BookConnection!
+    books(publishedin: Int, first: Int): BookConnection!
     distinguished: Boolean
     publicationLanguages: [Language!]!
 }
