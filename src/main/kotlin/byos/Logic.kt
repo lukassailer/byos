@@ -97,7 +97,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
 
 fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition: Condition = DSL.noCondition()): Field<JSON> {
     val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
-    val attributeNames = attributes.map { attribute -> DSL.field(attribute.graphQLFieldName).`as`(attribute.graphQLAlias) }
+    val attributeNames = attributes.distinctBy { it.graphQLAlias }.map { attribute -> DSL.field(attribute.graphQLFieldName).`as`(attribute.graphQLAlias) }
     // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
     val outerTable = getTableWithAlias(relation)
 
