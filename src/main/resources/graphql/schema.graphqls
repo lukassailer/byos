@@ -31,6 +31,7 @@ type BookConnection {
 
 type BookEdge {
     node: Book!
+    cursor: String!
 }
 
 # example for connection without pagination
@@ -55,6 +56,7 @@ type BookStoreConnection {
 
 type BookStoreEdge {
     node: BookStore!
+    cursor: String!
 }
 
 type Book_To_Bookstore {
@@ -68,6 +70,7 @@ type B2BConnection {
 
 type B2BEdge {
     node: Book_To_Bookstore!
+    cursor: String!
 }
 
 type Language {
@@ -89,6 +92,7 @@ type ShopUserConnection {
 
 type ShopUserEdge {
     node: ShopUser!
+    cursor: String!
 }
 
 type ShopOrder {
@@ -104,6 +108,7 @@ type ShopOrderConnection {
 
 type ShopOrderEdge {
     node: ShopOrder!
+    cursor: String!
 }
 
 type Tree {
@@ -119,4 +124,5 @@ type TreeConnection {
 
 type TreeEdge {
     node: Tree!
+    cursor: String!
 }

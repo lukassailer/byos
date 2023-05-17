@@ -33,7 +33,7 @@ sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: S
         val fieldTypeInfo: FieldTypeInfo,
         val children: List<InternalQueryNode>,
         val arguments: List<Argument>,
-        val isPaginated: Boolean
+        val connectionInfo: ConnectionInfo?,
     ) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 
     class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
@@ -42,6 +42,8 @@ sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: S
 data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
     val relationName = graphQLTypeName.lowercase()
 }
+
+data class ConnectionInfo(val cursorGraphQLAliases: List<String>)
 
 fun buildInternalQueryTree(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
     getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
@@ -76,7 +78,9 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         fieldTypeInfo = nodeTypeInfo,
                         children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
-                        isPaginated = true
+                        connectionInfo = ConnectionInfo(
+                            edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().filter { it.name == "cursor" }.map { it.alias ?: it.name }
+                        )
                     )
                 }
 
@@ -89,7 +93,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         fieldTypeInfo = fieldTypeInfo,
                         children = getChildrenFromSelectionSet(subSelectionSet, fieldTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
-                        isPaginated = false
+                        connectionInfo = null
                     )
                 }
             }
@@ -115,7 +119,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     return DSL.field(
         DSL.select(
             when {
-                relation.isPaginated -> {
+                relation.connectionInfo != null -> {
                     DSL.jsonObject(
                         "edges",
                         DSL.coalesce(
