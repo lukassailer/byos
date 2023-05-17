@@ -2,6 +2,7 @@ package byos
 
 import db.jooq.generated.Public.PUBLIC
 import graphql.language.Argument
+import graphql.language.IntValue
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import graphql.schema.GraphQLList
@@ -31,38 +32,66 @@ sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: S
         val sqlAlias: String,
         val fieldTypeInfo: FieldTypeInfo,
         val children: List<InternalQueryNode>,
-        val arguments: List<Argument>
+        val arguments: List<Argument>,
+        val isPaginated: Boolean
     ) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 
     class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 }
 
-data class FieldTypeInfo(private val fieldName: String, val isList: Boolean) {
-    val relationName = fieldName.lowercase()
+data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
+    val relationName = graphQLTypeName.lowercase()
 }
 
 fun buildInternalQueryTree(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
     getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
 
-private fun getChildrenFromSelectionSet(selectionSet: SelectionSet): List<InternalQueryNode> =
+private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQlTypeName: String = schema.queryType.name): List<InternalQueryNode> =
     selectionSet.selections
         .filterIsInstance<GraphQLField>()
         .map { selection ->
             val subSelectionSet = selection.selectionSet
-            if (subSelectionSet == null) {
-                InternalQueryNode.Attribute(
-                    graphQLFieldName = selection.name,
-                    graphQLAlias = selection.alias ?: selection.name
-                )
-            } else {
-                InternalQueryNode.Relation(
-                    graphQLFieldName = selection.name,
-                    graphQLAlias = selection.alias ?: selection.name,
-                    sqlAlias = "${selection.name}-${UUID.randomUUID()}",
-                    fieldTypeInfo = getFieldTypeInfo(schema, selection.name),
-                    children = getChildrenFromSelectionSet(subSelectionSet),
-                    arguments = selection.arguments
-                )
+            when {
+                subSelectionSet == null -> {
+                    InternalQueryNode.Attribute(
+                        graphQLFieldName = selection.name,
+                        graphQLAlias = selection.alias ?: selection.name
+                    )
+                }
+
+                subSelectionSet.selections.any { it is GraphQLField && it.name == "edges" } -> {
+                    val edgesSelection = subSelectionSet.selections.filterIsInstance<GraphQLField>().single { it.name == "edges" }
+                    val nodeSelection = edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().single { it.name == "node" }
+                    val nodeSubSelectionSet = nodeSelection.selectionSet
+
+                    // TODO alias
+                    val queryTypeInfo = getFieldTypeInfo(schema, selection.name, parentGraphQlTypeName)
+                    val edgesTypeInfo = getFieldTypeInfo(schema, edgesSelection.name, queryTypeInfo.graphQLTypeName)
+                    val nodeTypeInfo = getFieldTypeInfo(schema, nodeSelection.name, edgesTypeInfo.graphQLTypeName)
+
+                    InternalQueryNode.Relation(
+                        graphQLFieldName = selection.name,
+                        graphQLAlias = selection.alias ?: selection.name,
+                        sqlAlias = "${selection.name}-${UUID.randomUUID()}",
+                        fieldTypeInfo = nodeTypeInfo,
+                        children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
+                        arguments = selection.arguments,
+                        isPaginated = true
+                    )
+                }
+
+                else -> {
+                    val fieldTypeInfo = getFieldTypeInfo(schema, selection.name, parentGraphQlTypeName)
+                    InternalQueryNode.Relation(
+                        graphQLFieldName = selection.name,
+                        graphQLAlias = selection.alias ?: selection.name,
+                        sqlAlias = "${selection.name}-${UUID.randomUUID()}",
+                        fieldTypeInfo = fieldTypeInfo,
+                        children = getChildrenFromSelectionSet(subSelectionSet, fieldTypeInfo.graphQLTypeName),
+                        arguments = selection.arguments,
+                        isPaginated = false
+                    )
+                }
             }
         }
 
@@ -79,31 +108,58 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
+    val (paginationArgument, filterArguments) = relation.arguments.partition { it.name == "first" }
+    val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
+    val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
+
     return DSL.field(
         DSL.select(
-            if (relation.fieldTypeInfo.isList) {
-                DSL.coalesce(
-                    DSL.jsonArrayAgg(
-                        DSL.jsonObject(
-                            *attributeNames.toTypedArray(),
-                            *subSelects.toTypedArray()
+            when {
+                relation.isPaginated -> {
+                    DSL.jsonObject(
+                        "edges",
+                        DSL.coalesce(
+                            DSL.jsonArrayAgg(
+                                DSL.jsonObject(
+                                    "node",
+                                    DSL.jsonObject(
+                                        *attributeNames.toTypedArray(),
+                                        *subSelects.toTypedArray()
+                                    )
+                                )
+                            ),
+                            DSL.jsonArray()
                         )
-                    ),
-                    DSL.jsonArray()
-                )
-            } else {
-                DSL.jsonObject(
-                    *attributeNames.toTypedArray(),
-                    *subSelects.toTypedArray()
-                )
+                    )
+                }
+
+                relation.fieldTypeInfo.isList -> {
+                    DSL.coalesce(
+                        DSL.jsonArrayAgg(
+                            DSL.jsonObject(
+                                *attributeNames.toTypedArray(),
+                                *subSelects.toTypedArray()
+                            )
+                        ),
+                        DSL.jsonArray()
+                    )
+                }
+
+                else -> {
+                    DSL.jsonObject(
+                        *attributeNames.toTypedArray(),
+                        *subSelects.toTypedArray()
+                    )
+                }
             }
         ).from(
             DSL.select(attributeNames)
                 .select(subSelects)
                 .from(outerTable)
-                .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+                .where(argumentConditions)
                 .and(joinCondition)
                 .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
+                .apply { if (limit != null) limit(limit) }
         )
     ).`as`(relation.graphQLAlias)
 }
@@ -111,15 +167,10 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
     PUBLIC.getTable(relation.fieldTypeInfo.relationName)?.`as`(relation.sqlAlias) ?: error("Table not found")
 
-fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String): FieldTypeInfo {
-    // TODO: search only on specific type
-    schema.allTypesAsList
-        .filterIsInstance<GraphQLObjectType>()
-        .flatMap { it.fieldDefinitions }
-        .find { it.name == fieldName }
-        ?.type
-        ?.let { return getTypeInfo(it, false) }
-        ?: error("Field '$fieldName' not found in schema")
+fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String, typeName: String): FieldTypeInfo {
+    val type = schema.getType(typeName) as? GraphQLObjectType ?: error("Type '$typeName' not found in schema")
+    val field = type.getFieldDefinition(fieldName) ?: error("Field '$fieldName' not found on type $typeName")
+    return getTypeInfo(field.type, false)
 }
 
 private fun getTypeInfo(type: GraphQLType, inList: Boolean): FieldTypeInfo {
