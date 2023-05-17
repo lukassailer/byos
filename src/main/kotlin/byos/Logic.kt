@@ -2,6 +2,7 @@ package byos
 
 import db.jooq.generated.Public.PUBLIC
 import graphql.language.Argument
+import graphql.language.IntValue
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import graphql.schema.GraphQLList
@@ -107,6 +108,10 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
+    val (paginationArgument, filterArguments) = relation.arguments.partition { it.name == "first" }
+    val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
+    val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
+
     return DSL.field(
         DSL.select(
             when {
@@ -151,9 +156,10 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
             DSL.select(attributeNames)
                 .select(subSelects)
                 .from(outerTable)
-                .where(relation.arguments.map { WhereCondition.getForArgument(it, outerTable) })
+                .where(argumentConditions)
                 .and(joinCondition)
                 .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
+                .apply { if (limit != null) limit(limit) }
         )
     ).`as`(relation.graphQLAlias)
 }

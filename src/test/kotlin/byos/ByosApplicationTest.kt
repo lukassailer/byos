@@ -631,4 +631,59 @@ class ByosApplicationTest(
 
         assertJsonEquals(expectedResult, result)
     }
+
+    @Test
+    fun `query with pagination`() {
+        val query = """
+            query {
+              allBooks(first: 1) {
+                edges {
+                  node {
+                    id
+                    author {
+                      books(publishedin: 1945, first: 1) {
+                        edges {
+                          node {
+                            id
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+        """
+
+        val result = graphQLService.executeGraphQLQuery(query)
+
+        val expectedResult = """
+            {
+              "data": {
+                "allBooks": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": 1,
+                        "author": {
+                          "books": {
+                            "edges": [
+                              {
+                                "node": {
+                                  "id": 2
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+        """
+
+        assertJsonEquals(expectedResult, result)
+    }
 }
