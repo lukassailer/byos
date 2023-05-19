@@ -633,7 +633,7 @@ class ByosApplicationTest(
     }
 
     @Test
-    fun `query with pagination`() {
+    fun `query with first limit`() {
         val query = """
             query {
               allBooks(first: 1) {
@@ -650,7 +650,9 @@ class ByosApplicationTest(
                       }
                     }
                   }
+                  cursor
                 }
+                totalCount
               }
             }
         """
@@ -676,6 +678,82 @@ class ByosApplicationTest(
                             ]
                           }
                         }
+                      },
+                      "cursor" : {
+                        "f1": 1
+                      }
+                    }
+                  ],
+                  "totalCount": 4
+                }
+              }
+            }
+        """
+
+        assertJsonEquals(expectedResult, result)
+    }
+
+    @Test
+    fun `query with custom order`() {
+        val query = """
+            query {
+              allBooks(orderBy:{title: ASC } ){
+                edges{
+                   node{
+                    id
+                    title
+                  }
+                  cursor
+                }
+              }
+            }
+        """
+
+        val result = graphQLService.executeGraphQLQuery(query)
+
+        val expectedResult = """
+            {
+              "data": {
+                "allBooks": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": 1,
+                        "title": "1984"
+                      },
+                      "cursor": {
+                        "f1": "1984",
+                        "f2": 1
+                      }
+                    },
+                    {
+                      "node": {
+                        "id": 2,
+                        "title": "Animal Farm"
+                      },
+                      "cursor": {
+                        "f1": "Animal Farm",
+                        "f2": 2
+                      }
+                    },
+                    {
+                      "node": {
+                        "id": 4,
+                        "title": "Brida"
+                      },
+                      "cursor": {
+                        "f1": "Brida",
+                        "f2": 4
+                      }
+                    },
+                    {
+                      "node": {
+                        "id": 3,
+                        "title": "O Alquimista"
+                      },
+                      "cursor": {
+                        "f1": "O Alquimista",
+                        "f2": 3
                       }
                     }
                   ]

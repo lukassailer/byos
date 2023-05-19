@@ -121,15 +121,22 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     val (paginationArgument, otherArguments) = relation.arguments.partition { it.name == "first" }
     val (orderByArgument, filterArguments) = otherArguments.partition { it.name == "orderBy" }
 
-    val orderByMap = (orderByArgument.firstOrNull()?.value as ObjectValue?)?.objectFields?.associate { it.name to (it.value as EnumValue).name }.orEmpty()
-    val orderByFields = orderByMap.keys.map { outerTable.field(it.lowercase())!! }.toSet()
-    val orderByFieldsWithDirection = orderByMap.map { (fieldName, direction) ->
-        val field = outerTable.field(fieldName.lowercase())!!
-        if (direction == "DESC") field.desc() else field.asc()
-    }
+    val providedOrderCriteria =
+        (orderByArgument.firstOrNull()?.value as ObjectValue?)?.objectFields?.associate {
+            outerTable.field(it.name.lowercase())!! to
+                    (it.value as EnumValue).name
+        }.orEmpty()
     val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it)!! }.orEmpty()
-    val orderBy = orderByFieldsWithDirection + (primaryKeyFields - orderByFields).map { it.asc() }
-    val cursorBasedOnOrder = DSL.row(orderBy.map { it.`$field`() }).`as`("order_criteria")
+
+    val orderByFields = providedOrderCriteria.keys + (primaryKeyFields - providedOrderCriteria.keys).toSet()
+    val orderBy = orderByFields
+        .map {
+            when (providedOrderCriteria[it]) {
+                "DESC" -> it.desc()
+                else -> it.asc()
+            }
+        }
+    val cursor = DSL.row(orderByFields).`as`("cursor")
 
     val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
 
@@ -157,7 +164,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                                             )
                                         ),
                                         *relation.connectionInfo.cursorGraphQLAliases.map {
-                                            DSL.key(it).value(DSL.field(cursorBasedOnOrder.name))
+                                            DSL.key(it).value(DSL.field(cursor.name))
                                         }.toTypedArray()
                                     )
                                 ),
@@ -193,7 +200,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         ).from(
             DSL.select(attributeNames)
                 .select(subSelects)
-                .select(cursorBasedOnOrder)
+                .select(cursor)
                 .from(outerTable)
                 .where(argumentConditions)
                 .and(joinCondition)
