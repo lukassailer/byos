@@ -100,10 +100,11 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
         }
 
 fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition: Condition = DSL.noCondition()): Field<JSON> {
-    val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
-    val attributeNames = attributes.distinctBy { it.graphQLAlias }.map { attribute -> DSL.field(attribute.graphQLFieldName).`as`(attribute.graphQLAlias) }
-    // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
     val outerTable = getTableWithAlias(relation)
+
+    val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
+    val attributeNames = attributes.distinctBy { it.graphQLAlias }
+        .map { attribute -> outerTable.field(attribute.graphQLFieldName.lowercase())!!.`as`(attribute.graphQLAlias) }
 
     val subSelects = relations.map { subRelation ->
         val innerTable = getTableWithAlias(subRelation as InternalQueryNode.Relation)
@@ -116,6 +117,9 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
     val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
 
+    val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it) } ?: emptyList()
+    val orderCriteria = DSL.row(primaryKeyFields).`as`("order_criteria")
+
     return DSL.field(
         DSL.select(
             when {
@@ -125,11 +129,15 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                         DSL.coalesce(
                             DSL.jsonArrayAgg(
                                 DSL.jsonObject(
-                                    "node",
-                                    DSL.jsonObject(
-                                        *attributeNames.toTypedArray(),
-                                        *subSelects.toTypedArray()
-                                    )
+                                    DSL.key("node").value(
+                                        DSL.jsonObject(
+                                            *attributeNames.toTypedArray(),
+                                            *subSelects.toTypedArray()
+                                        )
+                                    ),
+                                    *relation.connectionInfo.cursorGraphQLAliases.map {
+                                        DSL.key(it).value(DSL.field(orderCriteria.name))
+                                    }.toTypedArray()
                                 )
                             ),
                             DSL.jsonArray()
@@ -159,15 +167,17 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         ).from(
             DSL.select(attributeNames)
                 .select(subSelects)
+                .select(orderCriteria)
                 .from(outerTable)
                 .where(argumentConditions)
                 .and(joinCondition)
-                .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
+                .orderBy(primaryKeyFields)
                 .apply { if (limit != null) limit(limit) }
         )
     ).`as`(relation.graphQLAlias)
 }
 
+// TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
 private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
     PUBLIC.getTable(relation.fieldTypeInfo.relationName)?.`as`(relation.sqlAlias) ?: error("Table not found")
 
