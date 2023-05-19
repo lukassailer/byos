@@ -43,7 +43,7 @@ data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
     val relationName = graphQLTypeName.lowercase()
 }
 
-data class ConnectionInfo(val cursorGraphQLAliases: List<String>)
+data class ConnectionInfo(val cursorGraphQLAliases: List<String>, val totalCountGraphQLAliases: List<String>)
 
 fun buildInternalQueryTrees(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
     getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
@@ -79,7 +79,10 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
                         connectionInfo = ConnectionInfo(
-                            edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().filter { it.name == "cursor" }.map { it.alias ?: it.name }
+                            edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().filter { it.name == "cursor" }
+                                .map { it.alias ?: it.name },
+                            subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "totalCount" }
+                                .map { it.alias ?: it.name }
                         )
                     )
                 }
@@ -120,28 +123,39 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it) } ?: emptyList()
     val orderCriteria = DSL.row(primaryKeyFields).`as`("order_criteria")
 
+    val totalCountSubquery =
+        DSL.selectCount()
+            .from(outerTable)
+            .where(argumentConditions)
+            .and(joinCondition)
+
     return DSL.field(
         DSL.select(
             when {
                 relation.connectionInfo != null -> {
                     DSL.jsonObject(
-                        "edges",
-                        DSL.coalesce(
-                            DSL.jsonArrayAgg(
-                                DSL.jsonObject(
-                                    DSL.key("node").value(
-                                        DSL.jsonObject(
-                                            *attributeNames.toTypedArray(),
-                                            *subSelects.toTypedArray()
-                                        )
-                                    ),
-                                    *relation.connectionInfo.cursorGraphQLAliases.map {
-                                        DSL.key(it).value(DSL.field(orderCriteria.name))
-                                    }.toTypedArray()
-                                )
-                            ),
-                            DSL.jsonArray()
-                        )
+                        DSL.key("edges").value(
+                            DSL.coalesce(
+                                DSL.jsonArrayAgg(
+                                    DSL.jsonObject(
+                                        DSL.key("node").value(
+                                            DSL.jsonObject(
+                                                *attributeNames.toTypedArray(),
+                                                *subSelects.toTypedArray()
+                                            )
+                                        ),
+                                        *relation.connectionInfo.cursorGraphQLAliases.map {
+                                            DSL.key(it).value(DSL.field(orderCriteria.name))
+                                        }.toTypedArray()
+                                    )
+                                ),
+                                DSL.jsonArray()
+                            )
+
+                        ),
+                        *relation.connectionInfo.totalCountGraphQLAliases.map {
+                            DSL.key(it).value(totalCountSubquery)
+                        }.toTypedArray()
                     )
                 }
 
