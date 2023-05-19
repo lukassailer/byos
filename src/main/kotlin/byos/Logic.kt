@@ -45,7 +45,7 @@ data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
 
 data class ConnectionInfo(val cursorGraphQLAliases: List<String>)
 
-fun buildInternalQueryTree(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
+fun buildInternalQueryTrees(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
     getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
 
 private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQlTypeName: String = schema.queryType.name): List<InternalQueryNode> =
