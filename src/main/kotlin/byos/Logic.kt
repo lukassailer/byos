@@ -2,7 +2,9 @@ package byos
 
 import db.jooq.generated.Public.PUBLIC
 import graphql.language.Argument
+import graphql.language.EnumValue
 import graphql.language.IntValue
+import graphql.language.ObjectValue
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import graphql.schema.GraphQLList
@@ -116,12 +118,22 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
-    val (paginationArgument, filterArguments) = relation.arguments.partition { it.name == "first" }
-    val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
+    val (paginationArgument, otherArguments) = relation.arguments.partition { it.name == "first" }
+    val (orderByArgument, filterArguments) = otherArguments.partition { it.name == "orderBy" }
+
+    val orderByMap = (orderByArgument.firstOrNull()?.value as ObjectValue?)?.objectFields?.associate { it.name to (it.value as EnumValue).name }.orEmpty()
+    val orderByFields = orderByMap.keys.map { outerTable.field(it.lowercase())!! }.toSet()
+    val orderByFieldsWithDirection = orderByMap.map { (fieldName, direction) ->
+        val field = outerTable.field(fieldName.lowercase())!!
+        if (direction == "DESC") field.desc() else field.asc()
+    }
+    val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it)!! }.orEmpty()
+    val orderBy = orderByFieldsWithDirection + (primaryKeyFields - orderByFields).map { it.asc() }
+    val cursorBasedOnOrder = DSL.row(orderBy.map { it.`$field`() }).`as`("order_criteria")
+
     val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
 
-    val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it) } ?: emptyList()
-    val orderCriteria = DSL.row(primaryKeyFields).`as`("order_criteria")
+    val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
 
     val totalCountSubquery =
         DSL.selectCount()
@@ -145,7 +157,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                                             )
                                         ),
                                         *relation.connectionInfo.cursorGraphQLAliases.map {
-                                            DSL.key(it).value(DSL.field(orderCriteria.name))
+                                            DSL.key(it).value(DSL.field(cursorBasedOnOrder.name))
                                         }.toTypedArray()
                                     )
                                 ),
@@ -181,11 +193,11 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         ).from(
             DSL.select(attributeNames)
                 .select(subSelects)
-                .select(orderCriteria)
+                .select(cursorBasedOnOrder)
                 .from(outerTable)
                 .where(argumentConditions)
                 .and(joinCondition)
-                .orderBy(primaryKeyFields)
+                .orderBy(orderBy)
                 .apply { if (limit != null) limit(limit) }
         )
     ).`as`(relation.graphQLAlias)

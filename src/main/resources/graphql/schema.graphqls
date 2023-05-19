@@ -2,7 +2,7 @@ type Query {
     allAuthors: [Author!]!
     authorById(id: ID!): Author
     authorsByIds(id: [ID!]!): [[Author]]!
-    allBooks(first: Int): BookConnection!
+    allBooks(first: Int, orderBy: OrderBooksBy): BookConnection!
     test: Test!
     allOrders(first: Int): ShopOrderConnection!
     allUsers(first: Int): ShopUserConnection!
@@ -11,6 +11,16 @@ type Query {
     booksByYear(publishedin: Int!, first: Int): BookConnection!
     distinguishedAuthors(distinguished: Boolean): [Author!]!
     distinguishedAuthorsList(distinguished: [Boolean]!): [Author!]!
+}
+
+enum SortDirection {
+    ASC
+    DESC
+}
+
+input OrderBooksBy {
+    id: SortDirection
+    title: SortDirection
 }
 
 type Test {
