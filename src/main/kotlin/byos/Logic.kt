@@ -142,11 +142,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 
     val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
 
-    val totalCountSubquery =
-        DSL.selectCount()
-            .from(outerTable)
-            .where(argumentConditions)
-            .and(joinCondition)
+    val totalCount = DSL.count().over().`as`("test")
 
     return DSL.field(
         DSL.select(
@@ -173,7 +169,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 
                         ),
                         *relation.connectionInfo.totalCountGraphQLAliases.map {
-                            DSL.key(it).value(totalCountSubquery)
+                            DSL.key(it).value(DSL.max(DSL.field(totalCount.name)))
                         }.toTypedArray()
                     )
                 }
@@ -201,6 +197,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
             DSL.select(attributeNames)
                 .select(subSelects)
                 .select(cursor)
+                .select(totalCount)
                 .from(outerTable)
                 .where(argumentConditions)
                 .and(joinCondition)
