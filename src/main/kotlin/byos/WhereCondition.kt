@@ -1,5 +1,6 @@
 package byos
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import db.jooq.generated.Tables.BOOK
 import db.jooq.generated.Tables.BOOK_TO_BOOKSTORE
 import db.jooq.generated.tables.Author
@@ -21,6 +22,9 @@ import graphql.language.StringValue
 import graphql.language.Value
 import org.jooq.Condition
 import org.jooq.Field
+import org.jooq.Record
+import org.jooq.SortField
+import org.jooq.SortOrder
 import org.jooq.Table
 import org.jooq.impl.DSL
 
@@ -70,4 +74,36 @@ object WhereCondition {
             else -> error("Unsupported argument type ${value.javaClass}")
         }
 
+    fun getForAfterArgument(afterArgument: Argument, orderByFields: List<SortField<*>>, table: Table<out Record>): Condition {
+        val after = (afterArgument.value as StringValue).value
+        val json = ObjectMapper().readTree(after)
+        val afterValues = json.fields().asSequence().map { it.key to it.value.asText() }.toList()
+
+        return getForAfterArgumentRec(afterValues, orderByFields, table)
+    }
+
+    private fun getForAfterArgumentRec(afterValues: List<Pair<String, String>>, orderByFields: List<SortField<*>>, table: Table<out Record>): Condition {
+        val head = afterValues.firstOrNull()
+        val tail = afterValues.drop(1)
+
+        val cond = head?.let { (field, value) ->
+            orderByFields.find { it.name == field }!!.let {
+                if (it.order == SortOrder.DESC) {
+                    (table.field(field) as Field<Any>).lessThan(value)
+                } else {
+                    (table.field(field) as Field<Any>).greaterThan(value)
+                }
+            }
+        } ?: DSL.noCondition()
+
+        return if (tail.any()) {
+            cond.or(
+                (table.field(head!!.first) as Field<Any>).eq(head.second).and(
+                    getForAfterArgumentRec(tail, orderByFields, table)
+                )
+            )
+        } else {
+            cond
+        }
+    }
 }

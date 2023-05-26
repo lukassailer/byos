@@ -11,6 +11,7 @@ type Query {
     booksByYear(publishedin: Int!, first: Int): BookConnection!
     distinguishedAuthors(distinguished: Boolean): [Author!]!
     distinguishedAuthorsList(distinguished: [Boolean]!): [Author!]!
+    allProducts(first: Int, after: String, orderBy: OrderProductsBy): ProductConnection!
 }
 
 enum SortDirection {
@@ -21,6 +22,7 @@ enum SortDirection {
 input OrderBooksBy {
     id: SortDirection
     title: SortDirection
+    publishedin: SortDirection
 }
 
 type Test {
@@ -140,5 +142,29 @@ type TreeConnection {
 
 type TreeEdge {
     node: Tree!
+    cursor: String!
+}
+
+type Product {
+    id: ID!
+    name: String!
+    price: Float!
+    category: String!
+}
+
+input OrderProductsBy {
+    id: SortDirection
+    name: SortDirection
+    price: SortDirection
+    category: SortDirection
+}
+
+type ProductConnection {
+    edges: [ProductEdge!]!
+    totalCount: Int!
+}
+
+type ProductEdge {
+    node: Product!
     cursor: String!
 }

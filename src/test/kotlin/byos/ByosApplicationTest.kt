@@ -750,4 +750,79 @@ class ByosApplicationTest(
 
         assertJsonEquals(expectedResult, result)
     }
+
+    @Test
+    fun `order by multiple fields and use cursor`() {
+        val query = """
+            query {
+              allProducts(
+                orderBy: {category: ASC, price: DESC}
+                after: "{\"category\" : \"Category 1\", \"price\" : 10.99, \"id\" : 1}"
+              ) {
+                edges {
+                  node {
+                    id
+                    name
+                    price
+                    category
+                  }
+                  cursor
+                }
+                totalCount
+              }
+            }
+        """
+
+        val result = graphQLService.executeGraphQLQuery(query)
+
+        val expectedResult = """
+            {
+              "data": {
+                "allProducts": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": 2,
+                        "name": "Product B",
+                        "price": 10.99,
+                        "category": "Category 1"
+                      },
+                      "cursor": "{\"category\" : \"Category 1\", \"price\" : 10.99, \"id\" : 2}"
+                    },
+                    {
+                      "node": {
+                        "id": 5,
+                        "name": "Product E",
+                        "price": 9.99,
+                        "category": "Category 1"
+                      },
+                      "cursor": "{\"category\" : \"Category 1\", \"price\" : 9.99, \"id\" : 5}"
+                    },
+                    {
+                      "node": {
+                        "id": 3,
+                        "name": "Product C",
+                        "price": 10.99,
+                        "category": "Category 2"
+                      },
+                      "cursor": "{\"category\" : \"Category 2\", \"price\" : 10.99, \"id\" : 3}"
+                    },
+                    {
+                      "node": {
+                        "id": 6,
+                        "name": "Product F",
+                        "price": 7.99,
+                        "category": "Category 2"
+                      },
+                      "cursor": "{\"category\" : \"Category 2\", \"price\" : 7.99, \"id\" : 6}"
+                    }
+                  ],
+                  "totalCount": 6
+                }
+              }
+            }
+        """
+
+        assertJsonEquals(expectedResult, result)
+    }
 }
