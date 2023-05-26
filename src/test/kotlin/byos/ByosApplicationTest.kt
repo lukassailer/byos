@@ -679,9 +679,7 @@ class ByosApplicationTest(
                           }
                         }
                       },
-                      "cursor" : {
-                        "f1": 1
-                      }
+                      "cursor" : "{\"id\" : 1}"
                     }
                   ],
                   "totalCount": 4
@@ -713,52 +711,40 @@ class ByosApplicationTest(
 
         val expectedResult = """
             {
-              "data": {
-                "allBooks": {
-                  "edges": [
-                    {
-                      "node": {
-                        "id": 1,
-                        "title": "1984"
-                      },
-                      "cursor": {
-                        "f1": "1984",
-                        "f2": 1
-                      }
-                    },
-                    {
-                      "node": {
-                        "id": 2,
-                        "title": "Animal Farm"
-                      },
-                      "cursor": {
-                        "f1": "Animal Farm",
-                        "f2": 2
-                      }
-                    },
-                    {
-                      "node": {
-                        "id": 4,
-                        "title": "Brida"
-                      },
-                      "cursor": {
-                        "f1": "Brida",
-                        "f2": 4
-                      }
-                    },
-                    {
-                      "node": {
-                        "id": 3,
-                        "title": "O Alquimista"
-                      },
-                      "cursor": {
-                        "f1": "O Alquimista",
-                        "f2": 3
-                      }
-                    }
-                  ]
-                }
-              }
+               "data":{
+                  "allBooks":{
+                     "edges":[
+                        {
+                           "node":{
+                              "id":1,
+                              "title":"1984"
+                           },
+                           "cursor":"{\"title\" : \"1984\", \"id\" : 1}"
+                        },
+                        {
+                           "node":{
+                              "id":2,
+                              "title":"Animal Farm"
+                           },
+                           "cursor":"{\"title\" : \"Animal Farm\", \"id\" : 2}"
+                        },
+                        {
+                           "node":{
+                              "id":4,
+                              "title":"Brida"
+                           },
+                           "cursor":"{\"title\" : \"Brida\", \"id\" : 4}"
+                        },
+                        {
+                           "node":{
+                              "id":3,
+                              "title":"O Alquimista"
+                           },
+                           "cursor":"{\"title\" : \"O Alquimista\", \"id\" : 3}"
+                        }
+                     ]
+                  }
+               }
             }
         """
 

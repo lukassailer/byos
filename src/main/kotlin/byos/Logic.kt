@@ -1,5 +1,6 @@
 package byos
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import db.jooq.generated.Public.PUBLIC
 import graphql.language.Argument
 import graphql.language.EnumValue
@@ -7,6 +8,7 @@ import graphql.language.IntValue
 import graphql.language.ObjectValue
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
+import graphql.language.StringValue
 import graphql.schema.GraphQLList
 import graphql.schema.GraphQLNonNull
 import graphql.schema.GraphQLObjectType
@@ -18,6 +20,7 @@ import graphql.schema.idl.SchemaParser
 import org.jooq.Condition
 import org.jooq.Field
 import org.jooq.JSON
+import org.jooq.SortOrder
 import org.jooq.impl.DSL
 import java.io.File
 import java.util.UUID
@@ -119,7 +122,10 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     }
 
     val (paginationArgument, otherArguments) = relation.arguments.partition { it.name == "first" }
-    val (orderByArgument, filterArguments) = otherArguments.partition { it.name == "orderBy" }
+    val (orderByArgument, otherArguments2) = otherArguments.partition { it.name == "orderBy" }
+    val (afterArgument, filterArguments) = otherArguments2.partition { it.name == "after" }
+
+    val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
 
     val providedOrderCriteria =
         (orderByArgument.firstOrNull()?.value as ObjectValue?)?.objectFields?.associate {
@@ -136,9 +142,22 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                 else -> it.asc()
             }
         }
-    val cursor = DSL.row(orderByFields).`as`("cursor")
+    val cursor = DSL.jsonObject(*orderByFields.toTypedArray()).`as`("cursor")
 
-    val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
+    val after = (afterArgument.firstOrNull()?.value as StringValue?)?.value ?: "{}"
+    val json = ObjectMapper().readTree(after)
+    val afterValues = json.fields().asSequence().map { it.key to it.value.asText() }
+    val afterCondition = afterValues.firstOrNull()?.let { (field, value) ->
+        orderBy.find { it.name == field }?.let {
+            if (it.order == SortOrder.DESC) {
+                (outerTable.field(field) as Field<Any>).lessThan(value)
+                // or ...
+            } else {
+                (outerTable.field(field) as Field<Any>).greaterThan(value)
+                // or ...
+            }
+        } ?: DSL.noCondition()
+    }
 
     val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
 
@@ -164,7 +183,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                                             )
                                         ),
                                         *relation.connectionInfo.cursorGraphQLAliases.map {
-                                            DSL.key(it).value(DSL.field(cursor.name))
+                                            DSL.key(it).value(DSL.field(cursor.name).cast(String::class.java))
                                         }.toTypedArray()
                                     )
                                 ),
@@ -204,6 +223,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                 .from(outerTable)
                 .where(argumentConditions)
                 .and(joinCondition)
+                .and(afterCondition)
                 .orderBy(orderBy)
                 .apply { if (limit != null) limit(limit) }
         )

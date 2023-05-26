@@ -2,7 +2,7 @@ type Query {
     allAuthors: [Author!]!
     authorById(id: ID!): Author
     authorsByIds(id: [ID!]!): [[Author]]!
-    allBooks(first: Int, orderBy: OrderBooksBy): BookConnection!
+    allBooks(first: Int, after: String, orderBy: OrderBooksBy): BookConnection!
     test: Test!
     allOrders(first: Int): ShopOrderConnection!
     allUsers(first: Int): ShopUserConnection!
