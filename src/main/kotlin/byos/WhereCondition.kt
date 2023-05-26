@@ -83,10 +83,9 @@ object WhereCondition {
     }
 
     private fun getForAfterArgumentRec(afterValues: List<Pair<String, String>>, orderByFields: List<SortField<*>>, table: Table<out Record>): Condition {
-        val head = afterValues.firstOrNull()
-        val tail = afterValues.drop(1)
+        val head = afterValues.firstOrNull() ?: return DSL.noCondition()
 
-        val cond = head?.let { (field, value) ->
+        val cond = head.let { (field, value) ->
             orderByFields.find { it.name == field }!!.let {
                 if (it.order == SortOrder.DESC) {
                     (table.field(field) as Field<Any>).lessThan(value)
@@ -94,16 +93,16 @@ object WhereCondition {
                     (table.field(field) as Field<Any>).greaterThan(value)
                 }
             }
-        } ?: DSL.noCondition()
+        }
 
-        return if (tail.any()) {
-            cond.or(
-                (table.field(head!!.first) as Field<Any>).eq(head.second).and(
+        val tail = afterValues.drop(1).ifEmpty { return cond }
+
+        return cond.or(
+            head.let { (field, value) ->
+                (table.field(field) as Field<Any>).eq(value).and(
                     getForAfterArgumentRec(tail, orderByFields, table)
                 )
-            )
-        } else {
-            cond
-        }
+            }
+        )
     }
 }
