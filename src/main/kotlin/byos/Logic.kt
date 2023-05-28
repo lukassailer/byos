@@ -167,14 +167,32 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 
     val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
 
+    val cte =
+        DSL.name("cte").`as`(
+            DSL.select(attributeNames)
+                .select(subSelects)
+                .select(cursor)
+                .from(outerTable)
+                .where(argumentConditions)
+                .and(joinCondition)
+                .and(afterCondition)
+                .orderBy(orderBy)
+                .apply { if (limit != null) limit(limit) }
+        )
+
     val totalCountSubquery =
         DSL.selectCount()
             .from(outerTable)
             .where(argumentConditions)
             .and(joinCondition)
 
+    val endCursorSubquery =
+        DSL.select(DSL.lastValue(DSL.field(cursor.name)).over())
+            .from(cte)
+            .limit(1)
+
     return DSL.field(
-        DSL.select(
+        DSL.with(cte).select(
             when {
                 relation.connectionInfo != null -> {
                     DSL.jsonObject(
@@ -207,7 +225,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                                         DSL.key(it).value(true)
                                     }.toTypedArray(),
                                     *pageInfo.endCursorGraphQlAliases.map {
-                                        DSL.key(it).value("TODO")
+                                        DSL.key(it).value(endCursorSubquery)
                                     }.toTypedArray()
                                 )
                             )
@@ -234,17 +252,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                     )
                 }
             }
-        ).from(
-            DSL.select(attributeNames)
-                .select(subSelects)
-                .select(cursor)
-                .from(outerTable)
-                .where(argumentConditions)
-                .and(joinCondition)
-                .and(afterCondition)
-                .orderBy(orderBy)
-                .apply { if (limit != null) limit(limit) }
-        )
+        ).from(cte)
     ).`as`(relation.graphQLAlias)
 }
 
