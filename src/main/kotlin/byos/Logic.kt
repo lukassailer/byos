@@ -161,7 +161,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                 else -> it.asc()
             }
         }
-    val cursor = DSL.jsonObject(*orderByFields.toTypedArray()).`as`("cursor")
+    val cursor = DSL.jsonObject(*orderByFields.toTypedArray()).cast(String::class.java).`as`("cursor")
 
     val afterCondition = afterArgument.firstOrNull()?.let { WhereCondition.getForAfterArgument(it, orderBy, outerTable) } ?: DSL.noCondition()
 
@@ -189,7 +189,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                                             )
                                         ),
                                         *relation.connectionInfo.cursorGraphQLAliases.map {
-                                            DSL.key(it).value(DSL.field(cursor.name).cast(String::class.java))
+                                            DSL.key(it).value(DSL.field(cursor.name))
                                         }.toTypedArray()
                                     )
                                 ),
