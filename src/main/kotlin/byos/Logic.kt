@@ -45,7 +45,17 @@ data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
     val relationName = graphQLTypeName.lowercase()
 }
 
-data class ConnectionInfo(val cursorGraphQLAliases: List<String>, val totalCountGraphQLAliases: List<String>)
+data class ConnectionInfo(
+    val cursorGraphQLAliases: List<String>,
+    val totalCountGraphQLAliases: List<String>,
+    val pageInfos: List<PageInfo>
+)
+
+data class PageInfo(
+    val graphQLAlias: String,
+    val hasNextPageGraphQlAliases: List<String>,
+    val endCursorGraphQlAliases: List<String>,
+)
 
 fun buildInternalQueryTrees(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
     getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
@@ -67,6 +77,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                     val edgesSelection = subSelectionSet.selections.filterIsInstance<GraphQLField>().single { it.name == "edges" }
                     val nodeSelection = edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().single { it.name == "node" }
                     val nodeSubSelectionSet = nodeSelection.selectionSet
+                    val pageInfoSelections = subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "pageInfo" }
 
                     // TODO alias
                     val queryTypeInfo = getFieldTypeInfo(schema, selection.name, parentGraphQlTypeName)
@@ -81,10 +92,21 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
                         connectionInfo = ConnectionInfo(
-                            edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().filter { it.name == "cursor" }
+                            cursorGraphQLAliases = edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().filter { it.name == "cursor" }
                                 .map { it.alias ?: it.name },
-                            subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "totalCount" }
-                                .map { it.alias ?: it.name }
+                            totalCountGraphQLAliases = subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "totalCount" }
+                                .map { it.alias ?: it.name },
+                            pageInfos = pageInfoSelections.map { pageInfoSelection ->
+                                val pageInfoSelectionSet = pageInfoSelection.selectionSet
+                                PageInfo(
+                                    graphQLAlias = pageInfoSelection.alias ?: pageInfoSelection.name,
+                                    hasNextPageGraphQlAliases = pageInfoSelectionSet!!.selections.filterIsInstance<GraphQLField>()
+                                        .filter { it.name == "hasNextPage" }
+                                        .map { it.alias ?: it.name },
+                                    endCursorGraphQlAliases = pageInfoSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "endCursor" }
+                                        .map { it.alias ?: it.name },
+                                )
+                            }
                         )
                     )
                 }
@@ -177,6 +199,18 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                         ),
                         *relation.connectionInfo.totalCountGraphQLAliases.map {
                             DSL.key(it).value(totalCountSubquery)
+                        }.toTypedArray(),
+                        *relation.connectionInfo.pageInfos.map { pageInfo ->
+                            DSL.key(pageInfo.graphQLAlias).value(
+                                DSL.jsonObject(
+                                    *pageInfo.hasNextPageGraphQlAliases.map {
+                                        DSL.key(it).value(true)
+                                    }.toTypedArray(),
+                                    *pageInfo.endCursorGraphQlAliases.map {
+                                        DSL.key(it).value("TODO")
+                                    }.toTypedArray()
+                                )
+                            )
                         }.toTypedArray()
                     )
                 }
