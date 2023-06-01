@@ -20,6 +20,7 @@ import org.jooq.Field
 import org.jooq.JSON
 import org.jooq.impl.DSL
 import java.io.File
+import java.math.BigInteger
 import java.util.UUID
 import graphql.language.Field as GraphQLField
 
@@ -172,6 +173,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
             DSL.select(attributeNames)
                 .select(subSelects)
                 .select(cursor)
+                .select(DSL.count().over().`as`("count_after_cursor"))
                 .from(outerTable)
                 .where(argumentConditions)
                 .and(joinCondition)
@@ -222,7 +224,13 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                             DSL.key(pageInfo.graphQLAlias).value(
                                 DSL.jsonObject(
                                     *pageInfo.hasNextPageGraphQlAliases.map {
-                                        DSL.key(it).value(true)
+                                        DSL.key(it).value(
+                                            when (limit) {
+                                                null -> false
+                                                BigInteger.ZERO -> true
+                                                else -> DSL.max(DSL.field("count_after_cursor")).greaterThan(limit)
+                                            }
+                                        )
                                     }.toTypedArray(),
                                     *pageInfo.endCursorGraphQlAliases.map {
                                         DSL.key(it).value(endCursorSubquery)
