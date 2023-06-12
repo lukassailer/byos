@@ -633,7 +633,7 @@ class ByosApplicationTest(
     }
 
     @Test
-    fun `query with pagination`() {
+    fun `query with first limit`() {
         val query = """
             query {
               allBooks(first: 1) {
@@ -650,7 +650,9 @@ class ByosApplicationTest(
                       }
                     }
                   }
+                  cursor
                 }
+                totalCount
               }
             }
         """
@@ -676,9 +678,146 @@ class ByosApplicationTest(
                             ]
                           }
                         }
-                      }
+                      },
+                      "cursor" : "{\"id\" : 1}"
                     }
-                  ]
+                  ],
+                  "totalCount": 4
+                }
+              }
+            }
+        """
+
+        assertJsonEquals(expectedResult, result)
+    }
+
+    @Test
+    fun `query with custom order`() {
+        val query = """
+            query {
+              allBooks(orderBy:{title: ASC } ){
+                edges{
+                   node{
+                    id
+                    title
+                  }
+                  cursor
+                }
+              }
+            }
+        """
+
+        val result = graphQLService.executeGraphQLQuery(query)
+
+        val expectedResult = """
+            {
+               "data":{
+                  "allBooks":{
+                     "edges":[
+                        {
+                           "node":{
+                              "id":1,
+                              "title":"1984"
+                           },
+                           "cursor":"{\"title\" : \"1984\", \"id\" : 1}"
+                        },
+                        {
+                           "node":{
+                              "id":2,
+                              "title":"Animal Farm"
+                           },
+                           "cursor":"{\"title\" : \"Animal Farm\", \"id\" : 2}"
+                        },
+                        {
+                           "node":{
+                              "id":4,
+                              "title":"Brida"
+                           },
+                           "cursor":"{\"title\" : \"Brida\", \"id\" : 4}"
+                        },
+                        {
+                           "node":{
+                              "id":3,
+                              "title":"O Alquimista"
+                           },
+                           "cursor":"{\"title\" : \"O Alquimista\", \"id\" : 3}"
+                        }
+                     ]
+                  }
+               }
+            }
+        """
+
+        assertJsonEquals(expectedResult, result)
+    }
+
+    @Test
+    fun `order by multiple fields and use cursor`() {
+        val query = """
+            query {
+              allProducts(
+                orderBy: {category: ASC, price: DESC}
+                after: "{\"category\" : \"Category 1\", \"price\" : 10.99, \"id\" : 1}"
+              ) {
+                edges {
+                  node {
+                    id
+                    name
+                    price
+                    category
+                  }
+                  cursor
+                }
+                totalCount
+              }
+            }
+        """
+
+        val result = graphQLService.executeGraphQLQuery(query)
+
+        val expectedResult = """
+            {
+              "data": {
+                "allProducts": {
+                  "edges": [
+                    {
+                      "node": {
+                        "id": 2,
+                        "name": "Product B",
+                        "price": 10.99,
+                        "category": "Category 1"
+                      },
+                      "cursor": "{\"category\" : \"Category 1\", \"price\" : 10.99, \"id\" : 2}"
+                    },
+                    {
+                      "node": {
+                        "id": 5,
+                        "name": "Product E",
+                        "price": 9.99,
+                        "category": "Category 1"
+                      },
+                      "cursor": "{\"category\" : \"Category 1\", \"price\" : 9.99, \"id\" : 5}"
+                    },
+                    {
+                      "node": {
+                        "id": 3,
+                        "name": "Product C",
+                        "price": 10.99,
+                        "category": "Category 2"
+                      },
+                      "cursor": "{\"category\" : \"Category 2\", \"price\" : 10.99, \"id\" : 3}"
+                    },
+                    {
+                      "node": {
+                        "id": 6,
+                        "name": "Product F",
+                        "price": 7.99,
+                        "category": "Category 2"
+                      },
+                      "cursor": "{\"category\" : \"Category 2\", \"price\" : 7.99, \"id\" : 6}"
+                    }
+                  ],
+                  "totalCount": 6
                 }
               }
             }

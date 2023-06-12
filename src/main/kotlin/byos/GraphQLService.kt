@@ -45,7 +45,7 @@ class GraphQLService {
             return objectMapper.writeValueAsString(result.toSpecification())
         }
 
-        val queryTrees = buildInternalQueryTree(ast)
+        val queryTrees = buildInternalQueryTrees(ast)
         val results =
             queryTrees.map { tree ->
                 executeJooqQuery { ctx ->

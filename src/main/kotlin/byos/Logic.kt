@@ -2,7 +2,9 @@ package byos
 
 import db.jooq.generated.Public.PUBLIC
 import graphql.language.Argument
+import graphql.language.EnumValue
 import graphql.language.IntValue
+import graphql.language.ObjectValue
 import graphql.language.OperationDefinition
 import graphql.language.SelectionSet
 import graphql.schema.GraphQLList
@@ -18,6 +20,7 @@ import org.jooq.Field
 import org.jooq.JSON
 import org.jooq.impl.DSL
 import java.io.File
+import java.math.BigInteger
 import java.util.UUID
 import graphql.language.Field as GraphQLField
 
@@ -33,7 +36,7 @@ sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: S
         val fieldTypeInfo: FieldTypeInfo,
         val children: List<InternalQueryNode>,
         val arguments: List<Argument>,
-        val isPaginated: Boolean
+        val connectionInfo: ConnectionInfo?,
     ) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 
     class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
@@ -43,7 +46,19 @@ data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
     val relationName = graphQLTypeName.lowercase()
 }
 
-fun buildInternalQueryTree(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
+data class ConnectionInfo(
+    val cursorGraphQLAliases: List<String>,
+    val totalCountGraphQLAliases: List<String>,
+    val pageInfos: List<PageInfo>
+)
+
+data class PageInfo(
+    val graphQLAlias: String,
+    val hasNextPageGraphQlAliases: List<String>,
+    val endCursorGraphQlAliases: List<String>,
+)
+
+fun buildInternalQueryTrees(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
     getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
 
 private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQlTypeName: String = schema.queryType.name): List<InternalQueryNode> =
@@ -63,6 +78,7 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                     val edgesSelection = subSelectionSet.selections.filterIsInstance<GraphQLField>().single { it.name == "edges" }
                     val nodeSelection = edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().single { it.name == "node" }
                     val nodeSubSelectionSet = nodeSelection.selectionSet
+                    val pageInfoSelections = subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "pageInfo" }
 
                     // TODO alias
                     val queryTypeInfo = getFieldTypeInfo(schema, selection.name, parentGraphQlTypeName)
@@ -76,7 +92,23 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         fieldTypeInfo = nodeTypeInfo,
                         children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
-                        isPaginated = true
+                        connectionInfo = ConnectionInfo(
+                            cursorGraphQLAliases = edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().filter { it.name == "cursor" }
+                                .map { it.alias ?: it.name },
+                            totalCountGraphQLAliases = subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "totalCount" }
+                                .map { it.alias ?: it.name },
+                            pageInfos = pageInfoSelections.map { pageInfoSelection ->
+                                val pageInfoSelectionSet = pageInfoSelection.selectionSet
+                                PageInfo(
+                                    graphQLAlias = pageInfoSelection.alias ?: pageInfoSelection.name,
+                                    hasNextPageGraphQlAliases = pageInfoSelectionSet!!.selections.filterIsInstance<GraphQLField>()
+                                        .filter { it.name == "hasNextPage" }
+                                        .map { it.alias ?: it.name },
+                                    endCursorGraphQlAliases = pageInfoSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "endCursor" }
+                                        .map { it.alias ?: it.name },
+                                )
+                            }
+                        )
                     )
                 }
 
@@ -89,17 +121,18 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         fieldTypeInfo = fieldTypeInfo,
                         children = getChildrenFromSelectionSet(subSelectionSet, fieldTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
-                        isPaginated = false
+                        connectionInfo = null
                     )
                 }
             }
         }
 
 fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition: Condition = DSL.noCondition()): Field<JSON> {
-    val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
-    val attributeNames = attributes.distinctBy { it.graphQLAlias }.map { attribute -> DSL.field(attribute.graphQLFieldName).`as`(attribute.graphQLAlias) }
-    // TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
     val outerTable = getTableWithAlias(relation)
+
+    val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
+    val attributeNames = attributes.distinctBy { it.graphQLAlias }
+        .map { attribute -> outerTable.field(attribute.graphQLFieldName.lowercase())!!.`as`(attribute.graphQLAlias) }
 
     val subSelects = relations.map { subRelation ->
         val innerTable = getTableWithAlias(subRelation as InternalQueryNode.Relation)
@@ -108,28 +141,103 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
         )
     }
 
-    val (paginationArgument, filterArguments) = relation.arguments.partition { it.name == "first" }
-    val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
+    val (paginationArgument, otherArguments) = relation.arguments.partition { it.name == "first" }
+    val (orderByArgument, otherArguments2) = otherArguments.partition { it.name == "orderBy" }
+    val (afterArgument, filterArguments) = otherArguments2.partition { it.name == "after" }
+
     val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
 
+    val providedOrderCriteria =
+        (orderByArgument.firstOrNull()?.value as ObjectValue?)?.objectFields?.associate {
+            outerTable.field(it.name.lowercase())!! to
+                    (it.value as EnumValue).name
+        }.orEmpty()
+    val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it)!! }.orEmpty()
+
+    val orderByFields = providedOrderCriteria.keys + (primaryKeyFields - providedOrderCriteria.keys).toSet()
+    val orderBy = orderByFields
+        .map {
+            when (providedOrderCriteria[it]) {
+                "DESC" -> it.desc()
+                else -> it.asc()
+            }
+        }
+    val cursor = DSL.jsonObject(*orderByFields.toTypedArray()).cast(String::class.java).`as`("cursor")
+
+    val afterCondition = afterArgument.firstOrNull()?.let { WhereCondition.getForAfterArgument(it, orderBy, outerTable) } ?: DSL.noCondition()
+
+    val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
+
+    val cte =
+        DSL.name("cte").`as`(
+            DSL.select(attributeNames)
+                .select(subSelects)
+                .select(cursor)
+                .select(DSL.count().over().`as`("count_after_cursor"))
+                .from(outerTable)
+                .where(argumentConditions)
+                .and(joinCondition)
+                .and(afterCondition)
+                .orderBy(orderBy)
+                .apply { if (limit != null) limit(limit) }
+        )
+
+    val totalCountSubquery =
+        DSL.selectCount()
+            .from(outerTable)
+            .where(argumentConditions)
+            .and(joinCondition)
+
+    val endCursorSubquery =
+        DSL.select(DSL.lastValue(DSL.field(cursor.name)).over())
+            .from(cte)
+            .limit(1)
+
     return DSL.field(
-        DSL.select(
+        DSL.with(cte).select(
             when {
-                relation.isPaginated -> {
+                relation.connectionInfo != null -> {
                     DSL.jsonObject(
-                        "edges",
-                        DSL.coalesce(
-                            DSL.jsonArrayAgg(
-                                DSL.jsonObject(
-                                    "node",
+                        DSL.key("edges").value(
+                            DSL.coalesce(
+                                DSL.jsonArrayAgg(
                                     DSL.jsonObject(
-                                        *attributeNames.toTypedArray(),
-                                        *subSelects.toTypedArray()
+                                        DSL.key("node").value(
+                                            DSL.jsonObject(
+                                                *attributeNames.toTypedArray(),
+                                                *subSelects.toTypedArray()
+                                            )
+                                        ),
+                                        *relation.connectionInfo.cursorGraphQLAliases.map {
+                                            DSL.key(it).value(DSL.field(cursor.name))
+                                        }.toTypedArray()
                                     )
+                                ),
+                                DSL.jsonArray()
+                            )
+
+                        ),
+                        *relation.connectionInfo.totalCountGraphQLAliases.map {
+                            DSL.key(it).value(totalCountSubquery)
+                        }.toTypedArray(),
+                        *relation.connectionInfo.pageInfos.map { pageInfo ->
+                            DSL.key(pageInfo.graphQLAlias).value(
+                                DSL.jsonObject(
+                                    *pageInfo.hasNextPageGraphQlAliases.map {
+                                        DSL.key(it).value(
+                                            when (limit) {
+                                                null -> false
+                                                BigInteger.ZERO -> true
+                                                else -> DSL.max(DSL.field("count_after_cursor")).greaterThan(limit)
+                                            }
+                                        )
+                                    }.toTypedArray(),
+                                    *pageInfo.endCursorGraphQlAliases.map {
+                                        DSL.key(it).value(endCursorSubquery)
+                                    }.toTypedArray()
                                 )
-                            ),
-                            DSL.jsonArray()
-                        )
+                            )
+                        }.toTypedArray()
                     )
                 }
 
@@ -152,18 +260,11 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                     )
                 }
             }
-        ).from(
-            DSL.select(attributeNames)
-                .select(subSelects)
-                .from(outerTable)
-                .where(argumentConditions)
-                .and(joinCondition)
-                .orderBy(outerTable.primaryKey?.fields?.map { outerTable.field(it) })
-                .apply { if (limit != null) limit(limit) }
-        )
+        ).from(cte)
     ).`as`(relation.graphQLAlias)
 }
 
+// TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
 private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
     PUBLIC.getTable(relation.fieldTypeInfo.relationName)?.`as`(relation.sqlAlias) ?: error("Table not found")
 

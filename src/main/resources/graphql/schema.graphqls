@@ -2,7 +2,7 @@ type Query {
     allAuthors: [Author!]!
     authorById(id: ID!): Author
     authorsByIds(id: [ID!]!): [[Author]]!
-    allBooks(first: Int): BookConnection!
+    allBooks(first: Int, after: String, orderBy: OrderBooksBy): BookConnection!
     test: Test!
     allOrders(first: Int): ShopOrderConnection!
     allUsers(first: Int): ShopUserConnection!
@@ -11,6 +11,23 @@ type Query {
     booksByYear(publishedin: Int!, first: Int): BookConnection!
     distinguishedAuthors(distinguished: Boolean): [Author!]!
     distinguishedAuthorsList(distinguished: [Boolean]!): [Author!]!
+    allProducts(first: Int, after: String, orderBy: OrderProductsBy): ProductConnection!
+}
+
+enum SortDirection {
+    ASC
+    DESC
+}
+
+type PageInfo {
+    hasNextPage: Boolean!
+    endCursor: String
+}
+
+input OrderBooksBy {
+    id: SortDirection
+    title: SortDirection
+    publishedin: SortDirection
 }
 
 type Test {
@@ -27,10 +44,13 @@ type Book {
 
 type BookConnection {
     edges: [BookEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
 }
 
 type BookEdge {
     node: Book!
+    cursor: String!
 }
 
 # example for connection without pagination
@@ -51,10 +71,13 @@ type BookStore {
 
 type BookStoreConnection {
     edges: [BookStoreEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
 }
 
 type BookStoreEdge {
     node: BookStore!
+    cursor: String!
 }
 
 type Book_To_Bookstore {
@@ -64,10 +87,13 @@ type Book_To_Bookstore {
 
 type B2BConnection {
     edges: [B2BEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
 }
 
 type B2BEdge {
     node: Book_To_Bookstore!
+    cursor: String!
 }
 
 type Language {
@@ -85,10 +111,13 @@ type ShopUser {
 
 type ShopUserConnection {
     edges: [ShopUserEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
 }
 
 type ShopUserEdge {
     node: ShopUser!
+    cursor: String!
 }
 
 type ShopOrder {
@@ -100,10 +129,13 @@ type ShopOrder {
 
 type ShopOrderConnection {
     edges: [ShopOrderEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
 }
 
 type ShopOrderEdge {
     node: ShopOrder!
+    cursor: String!
 }
 
 type Tree {
@@ -115,8 +147,36 @@ type Tree {
 
 type TreeConnection {
     edges: [TreeEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
 }
 
 type TreeEdge {
     node: Tree!
+    cursor: String!
+}
+
+type Product {
+    id: ID!
+    name: String!
+    price: Float!
+    category: String!
+}
+
+input OrderProductsBy {
+    id: SortDirection
+    name: SortDirection
+    price: SortDirection
+    category: SortDirection
+}
+
+type ProductConnection {
+    edges: [ProductEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
+}
+
+type ProductEdge {
+    node: Product!
+    cursor: String!
 }
