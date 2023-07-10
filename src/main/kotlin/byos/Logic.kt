@@ -47,6 +47,9 @@ data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
 }
 
 data class ConnectionInfo(
+    // currently only supports one edge and node per connection
+    val edgesGraphQLAlias: String,
+    val nodeGraphQLAlias: String,
     val cursorGraphQLAliases: List<String>,
     val totalCountGraphQLAliases: List<String>,
     val pageInfos: List<PageInfo>
@@ -80,7 +83,6 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                     val nodeSubSelectionSet = nodeSelection.selectionSet
                     val pageInfoSelections = subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "pageInfo" }
 
-                    // TODO alias
                     val queryTypeInfo = getFieldTypeInfo(schema, selection.name, parentGraphQlTypeName)
                     val edgesTypeInfo = getFieldTypeInfo(schema, edgesSelection.name, queryTypeInfo.graphQLTypeName)
                     val nodeTypeInfo = getFieldTypeInfo(schema, nodeSelection.name, edgesTypeInfo.graphQLTypeName)
@@ -93,6 +95,8 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                         children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
                         connectionInfo = ConnectionInfo(
+                            edgesGraphQLAlias = edgesSelection.alias ?: edgesSelection.name,
+                            nodeGraphQLAlias = nodeSelection.alias ?: nodeSelection.name,
                             cursorGraphQLAliases = edgesSelection.selectionSet!!.selections.filterIsInstance<GraphQLField>().filter { it.name == "cursor" }
                                 .map { it.alias ?: it.name },
                             totalCountGraphQLAliases = subSelectionSet.selections.filterIsInstance<GraphQLField>().filter { it.name == "totalCount" }
@@ -198,11 +202,11 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
             when {
                 relation.connectionInfo != null -> {
                     DSL.jsonObject(
-                        DSL.key("edges").value(
+                        DSL.key(relation.connectionInfo.edgesGraphQLAlias).value(
                             DSL.coalesce(
                                 DSL.jsonArrayAgg(
                                     DSL.jsonObject(
-                                        DSL.key("node").value(
+                                        DSL.key(relation.connectionInfo.nodeGraphQLAlias).value(
                                             DSL.jsonObject(
                                                 *attributeNames.toTypedArray(),
                                                 *subSelects.toTypedArray()
