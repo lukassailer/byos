@@ -21,7 +21,6 @@ class GraphiQLFilter(
         response.contentType = MediaType.APPLICATION_JSON_VALUE
         response.characterEncoding = "UTF-8"
 
-        // TODO pass variables to use for VariableReferences
         val result = graphQLService.executeGraphQLQuery(requestInfo)
         response.writer.write(result)
     }

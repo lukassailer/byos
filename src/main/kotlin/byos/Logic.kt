@@ -264,7 +264,6 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     ).`as`(relation.graphQLAlias)
 }
 
-// TODO DEFAULT_CATALOG.schemas durchsuchen anstatt PUBLIC?
 private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
     PUBLIC.getTable(relation.fieldTypeInfo.relationName)?.`as`(relation.sqlAlias) ?: error("Table not found")
 
