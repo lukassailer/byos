@@ -1,16 +1,15 @@
 package byos
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import db.jooq.generated.Tables.BOOK
-import db.jooq.generated.Tables.BOOK_TO_BOOKSTORE
-import db.jooq.generated.tables.Author
-import db.jooq.generated.tables.Book
-import db.jooq.generated.tables.BookToBookstore
-import db.jooq.generated.tables.Bookstore
+import db.jooq.generated.Tables.FILM_ACTOR
+import db.jooq.generated.Tables.FILM_CATEGORY
+import db.jooq.generated.Tables.INVENTORY
+import db.jooq.generated.tables.Actor
+import db.jooq.generated.tables.Category
+import db.jooq.generated.tables.Film
+import db.jooq.generated.tables.Inventory
 import db.jooq.generated.tables.Language
-import db.jooq.generated.tables.Shoporder
-import db.jooq.generated.tables.Shopuser
-import db.jooq.generated.tables.Tree
+import db.jooq.generated.tables.Store
 import graphql.language.Argument
 import graphql.language.ArrayValue
 import graphql.language.BooleanValue
@@ -31,21 +30,35 @@ import org.jooq.impl.DSL
 object WhereCondition {
     fun getForRelationship(relationshipName: String, left: Table<*>, right: Table<*>): Condition =
         when {
-            relationshipName == "author" && left is Book && right is Author -> left.AUTHORID.eq(right.ID)
-            relationshipName == "books" && left is Author && right is Book -> right.AUTHORID.eq(left.ID)
-            relationshipName == "user" && left is Shoporder && right is Shopuser -> right.USER_ID.eq(left.USER_ID)
-            relationshipName == "orders" && left is Shopuser && right is Shoporder -> right.USER_ID.eq(left.USER_ID)
-            relationshipName == "children" && left is Tree && right is Tree -> left.ID.eq(right.PARENT_ID)
-            relationshipName == "parent" && left is Tree && right is Tree -> right.ID.eq(left.PARENT_ID)
-            relationshipName == "books" && left is Bookstore && right is Book -> DSL.exists(
-                DSL.selectOne().from(BOOK_TO_BOOKSTORE).where(left.NAME.eq(BOOK_TO_BOOKSTORE.NAME).and(BOOK_TO_BOOKSTORE.BOOKID.eq(right.ID)))
+            relationshipName == "actors" && left is Film && right is Actor -> DSL.exists(
+                DSL.selectOne().from(FILM_ACTOR).where(left.FILM_ID.eq(FILM_ACTOR.FILM_ID).and(FILM_ACTOR.ACTOR_ID.eq(right.ACTOR_ID)))
             )
 
-            relationshipName == "b2b" && left is Bookstore && right is BookToBookstore -> left.NAME.eq(right.NAME)
-            relationshipName == "book" && left is BookToBookstore && right is Book -> left.BOOKID.eq(right.ID)
-            relationshipName == "language" && left is Book && right is Language -> left.LANGUAGEID.eq(right.ID)
-            relationshipName == "publicationLanguages" && left is Author && right is Language -> DSL.exists(
-                DSL.selectOne().from(BOOK).where(left.ID.eq(BOOK.AUTHORID).and(BOOK.LANGUAGEID.eq(right.ID)))
+            relationshipName == "films" && left is Actor && right is Film -> DSL.exists(
+                DSL.selectOne().from(FILM_ACTOR).where(left.ACTOR_ID.eq(FILM_ACTOR.ACTOR_ID).and(FILM_ACTOR.FILM_ID.eq(right.FILM_ID)))
+            )
+
+            relationshipName == "stores" && left is Film && right is Store -> DSL.exists(
+                DSL.selectOne().from(INVENTORY).where(left.FILM_ID.eq(INVENTORY.FILM_ID).and(INVENTORY.STORE_ID.eq(right.STORE_ID)))
+            )
+
+            relationshipName == "films" && left is Store && right is Film -> DSL.exists(
+                DSL.selectOne().from(INVENTORY).where(left.STORE_ID.eq(INVENTORY.STORE_ID).and(INVENTORY.FILM_ID.eq(right.FILM_ID)))
+            )
+
+            relationshipName == "language" && left is Film && right is Language -> left.LANGUAGE_ID.eq(right.LANGUAGE_ID)
+            relationshipName == "original_language" && left is Film && right is Language -> left.ORIGINAL_LANGUAGE_ID.eq(right.LANGUAGE_ID)
+
+            relationshipName == "inventories" && left is Store && right is Inventory -> left.STORE_ID.eq(right.STORE_ID)
+
+            relationshipName == "film" && left is Inventory && right is Film -> left.FILM_ID.eq(right.FILM_ID)
+
+            relationshipName == "categories" && left is Film && right is Category -> DSL.exists(
+                DSL.selectOne().from(FILM_CATEGORY).where(left.FILM_ID.eq(FILM_CATEGORY.FILM_ID).and(FILM_CATEGORY.CATEGORY_ID.eq(right.CATEGORY_ID)))
+            )
+
+            relationshipName == "films" && left is Category && right is Film -> DSL.exists(
+                DSL.selectOne().from(FILM_CATEGORY).where(left.CATEGORY_ID.eq(FILM_CATEGORY.CATEGORY_ID).and(FILM_CATEGORY.FILM_ID.eq(right.FILM_ID)))
             )
 
             else -> error("No relationship called $relationshipName found for tables $left and $right")

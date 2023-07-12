@@ -132,7 +132,10 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 
     val (relations, attributes) = relation.children.partition { it is InternalQueryNode.Relation }
     val attributeNames = attributes.distinctBy { it.graphQLAlias }
-        .map { attribute -> outerTable.field(attribute.graphQLFieldName.lowercase())!!.`as`(attribute.graphQLAlias) }
+        .map { attribute ->
+            outerTable.field(attribute.graphQLFieldName.lowercase())?.`as`(attribute.graphQLAlias)
+                ?: error("Field ${attribute.graphQLFieldName} does not exist on table $outerTable")
+        }
 
     val subSelects = relations.map { subRelation ->
         val innerTable = getTableWithAlias(subRelation as InternalQueryNode.Relation)
@@ -265,7 +268,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 }
 
 private fun getTableWithAlias(relation: InternalQueryNode.Relation) =
-    PUBLIC.getTable(relation.fieldTypeInfo.relationName)?.`as`(relation.sqlAlias) ?: error("Table not found")
+    PUBLIC.getTable(relation.fieldTypeInfo.relationName)?.`as`(relation.sqlAlias) ?: error("Table ${relation.fieldTypeInfo.relationName} not found")
 
 fun getFieldTypeInfo(schema: GraphQLSchema, fieldName: String, typeName: String): FieldTypeInfo {
     val type = schema.getType(typeName) as? GraphQLObjectType ?: error("Type '$typeName' not found in schema")
