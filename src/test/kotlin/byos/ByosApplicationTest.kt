@@ -191,10 +191,88 @@ internal class ByosApplicationTest {
 
     @Test
     fun queryWithSelfRelation() {
-        TODO("Add self relation to database")
         val query = """
+            {
+              allCategories(first: 3) {
+                edges {
+                  node {
+                    name
+                    parent_category {
+                      name
+                    }
+                    subcategories {
+                      edges {
+                        node {
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
             """.trimIndent()
         val expectedResult = """
+            {
+              "data": {
+                "allCategories": {
+                  "edges": [
+                    {
+                      "node": {
+                        "name": "Action",
+                        "parent_category": null,
+                        "subcategories": {
+                          "edges": [
+                            {
+                              "node": {
+                                "name": "Sci-Fi"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "node": {
+                        "name": "Animation",
+                        "parent_category": null,
+                        "subcategories": {
+                          "edges": [
+                            {
+                              "node": {
+                                "name": "Children"
+                              }
+                            },
+                            {
+                              "node": {
+                                "name": "Classics"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "node": {
+                        "name": "Children",
+                        "parent_category": {
+                          "name": "Animation"
+                        },
+                        "subcategories": {
+                          "edges": [
+                            {
+                              "node": {
+                                "name": "Family"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
             """.trimIndent()
         assertJsonEquals(expectedResult, graphQLService.executeGraphQLQuery(query))
     }
