@@ -61,6 +61,10 @@ object WhereCondition {
                 DSL.selectOne().from(FILM_CATEGORY).where(left.CATEGORY_ID.eq(FILM_CATEGORY.CATEGORY_ID).and(FILM_CATEGORY.FILM_ID.eq(right.FILM_ID)))
             )
 
+            relationshipName == "parent_category" && left is Category && right is Category -> left.PARENT_CATEGORY_ID.eq(right.CATEGORY_ID)
+
+            relationshipName == "subcategories" && left is Category && right is Category -> left.CATEGORY_ID.eq(right.PARENT_CATEGORY_ID)
+
             else -> error("No relationship called $relationshipName found for tables $left and $right")
         }
 
