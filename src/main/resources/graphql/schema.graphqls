@@ -1,17 +1,12 @@
 type Query {
-    allAuthors: [Author!]!
-    authorById(id: ID!): Author
-    authorsByIds(id: [ID!]!): [[Author]]!
-    allBooks(first: Int, after: String, orderBy: OrderBooksBy): BookConnection!
-    test: Test!
-    allOrders(first: Int): ShopOrderConnection!
-    allUsers(first: Int): ShopUserConnection!
-    allTrees(first: Int): TreeConnection!
-    allBookStores(first: Int): BookStoreConnection!
-    booksByYear(publishedin: Int!, first: Int): BookConnection!
-    distinguishedAuthors(distinguished: Boolean): [Author!]!
-    distinguishedAuthorsList(distinguished: [Boolean]!): [Author!]!
-    allProducts(first: Int, after: String, orderBy: OrderProductsBy): ProductConnection!
+    allFilms(first: Int, after: String, orderBy: OrderFilmsBy): FilmConnection!
+    filmById(film_id: ID!): Film
+    filmByIds(first: Int, after: String, film_id: [ID!]!): FilmConnection!
+    allActors: [Actor!]!
+    actorById(actor_id: ID!): Actor
+    allCategories(first: Int, after: String): CategoryConnection!
+    allStores(first: Int, after: String): StoreConnection!
+    filmsByYear(first: Int, after: String, release_year: Int!): FilmConnection!
 }
 
 enum SortDirection {
@@ -24,159 +19,95 @@ type PageInfo {
     endCursor: String
 }
 
-input OrderBooksBy {
-    id: SortDirection
-    title: SortDirection
-    publishedin: SortDirection
-}
-
-type Test {
-    value: String
-}
-
-type Book {
-    id: ID!
+type Film {
+    film_id: ID!
     title: String!
-    publishedin: Int!
-    author: Author!
+    release_year: Int
+    actors: [Actor!]!
+    categories(first: Int, after: String): CategoryConnection!
+    stores: StoreConnection!
     language: Language!
+    original_language: Language
 }
 
-type BookConnection {
-    edges: [BookEdge!]!
+input OrderFilmsBy {
+    film_id: SortDirection
+    title: SortDirection
+    release_year: SortDirection
+}
+
+type FilmConnection {
+    edges: [FilmEdge!]!
     totalCount: Int!
     pageInfo: PageInfo!
 }
 
-type BookEdge {
-    node: Book!
+type FilmEdge {
+    node: Film!
     cursor: String!
 }
 
-# example for connection without pagination
-type Author {
-    id: ID!
-    firstName: String
-    lastName: String!
-    books(publishedin: Int, first: Int): BookConnection!
-    distinguished: Boolean
-    publicationLanguages: [Language!]!
+type Actor {
+    actor_id: ID!
+    first_name: String!
+    last_name: String!
+    films(first: Int, after: String, orderBy: OrderFilmsBy, release_year: Int): FilmConnection!
 }
 
-type BookStore {
-    name: String!
-    books(first: Int): BookConnection!
-    b2b: B2BConnection!
+type Store {
+    store_id: ID!
+    films(first: Int, after: String, orderBy: OrderFilmsBy): FilmConnection!
+    inventories(first: Int, after: String): InventoryConnection!
 }
 
-type BookStoreConnection {
-    edges: [BookStoreEdge!]!
+type StoreConnection {
+    edges: [StoreEdge!]!
     totalCount: Int!
     pageInfo: PageInfo!
 }
 
-type BookStoreEdge {
-    node: BookStore!
-    cursor: String!
-}
-
-type Book_To_Bookstore {
-    book: Book!
-    stock: Int
-}
-
-type B2BConnection {
-    edges: [B2BEdge!]!
-    totalCount: Int!
-    pageInfo: PageInfo!
-}
-
-type B2BEdge {
-    node: Book_To_Bookstore!
+type StoreEdge {
+    node: Store!
     cursor: String!
 }
 
 type Language {
-    id: ID!
-    cd: String!
-    description: String
-}
-
-type ShopUser {
-    user_id: ID!
-    username: String!
-    email: String!
-    orders(first: Int): ShopOrderConnection!
-}
-
-type ShopUserConnection {
-    edges: [ShopUserEdge!]!
-    totalCount: Int!
-    pageInfo: PageInfo!
-}
-
-type ShopUserEdge {
-    node: ShopUser!
-    cursor: String!
-}
-
-type ShopOrder {
-    order_id: ID!
-    order_number: String!
-    user: ShopUser
-    order_date: String!
-}
-
-type ShopOrderConnection {
-    edges: [ShopOrderEdge!]!
-    totalCount: Int!
-    pageInfo: PageInfo!
-}
-
-type ShopOrderEdge {
-    node: ShopOrder!
-    cursor: String!
-}
-
-type Tree {
-    id: ID!
-    label: String!
-    parent: Tree
-    children(first: Int): TreeConnection!
-}
-
-type TreeConnection {
-    edges: [TreeEdge!]!
-    totalCount: Int!
-    pageInfo: PageInfo!
-}
-
-type TreeEdge {
-    node: Tree!
-    cursor: String!
-}
-
-type Product {
-    id: ID!
+    language_id: ID!
     name: String!
-    price: Float!
-    category: String!
 }
 
-input OrderProductsBy {
-    id: SortDirection
-    name: SortDirection
-    price: SortDirection
-    category: SortDirection
+type Inventory {
+    inventory_id: ID!
+    film: Film!
+    # stock: Int!
 }
 
-type ProductConnection {
-    edges: [ProductEdge!]!
+type InventoryConnection {
+    edges: [InventoryEdge!]!
     totalCount: Int!
     pageInfo: PageInfo!
 }
 
-type ProductEdge {
-    node: Product!
+type InventoryEdge {
+    node: Inventory!
+    cursor: String!
+}
+
+type Category {
+    category_id: ID!
+    name: String!
+    films(first: Int, after: String, orderBy: OrderFilmsBy): FilmConnection!
+    # parent: Category
+    # children: [Category!]!
+}
+
+type CategoryConnection {
+    edges: [CategoryEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
+}
+
+type CategoryEdge {
+    node: Category!
     cursor: String!
 }

@@ -60,7 +60,7 @@ jooq {
 
                 jdbc.apply {
                     driver = "org.postgresql.Driver"
-                    url = "jdbc:postgresql://localhost:5432/byos_schema_names"
+                    url = "jdbc:postgresql://localhost:5432/sakila"
                     user = "postgres"
                     password = ""
                 }
