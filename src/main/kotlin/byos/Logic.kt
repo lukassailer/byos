@@ -40,6 +40,13 @@ sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: S
     ) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 
     class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
+
+    override fun toString(): String {
+        return when (this) {
+            is Relation -> "Relation(graphQLFieldName='$graphQLFieldName', graphQLAlias='$graphQLAlias', sqlAlias='$sqlAlias', fieldTypeInfo=$fieldTypeInfo, children=$children, arguments=$arguments, connectionInfo=$connectionInfo)"
+            is Attribute -> "Attribute(graphQLFieldName='$graphQLFieldName', graphQLAlias='$graphQLAlias')"
+        }
+    }
 }
 
 data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
@@ -59,7 +66,7 @@ data class PageInfo(
 )
 
 fun buildInternalQueryTrees(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
-    getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
+    getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }.also { println(it) }
 
 private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQlTypeName: String = schema.queryType.name): List<InternalQueryNode> =
     selectionSet.selections

@@ -30,6 +30,8 @@ class GraphQLService {
     fun executeGraphQLQuery(requestInfo: RequestInfo): String {
         val (document, selectedQuery, _) = requestInfo
 
+        println(document)
+
         val errors = Validator().validateDocument(schema, document, Locale.ENGLISH)
         if (errors.isNotEmpty()) {
             return objectMapper.writeValueAsString(

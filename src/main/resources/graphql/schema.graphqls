@@ -1,4 +1,5 @@
 type Query {
+    allFilmsX: [Film!]!
     allFilms(first: Int, after: String, orderBy: OrderFilmsBy): FilmConnection!
     filmById(film_id: ID!): Film
     filmByIds(first: Int, after: String, film_id: [ID!]!): FilmConnection!
