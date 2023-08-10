@@ -175,12 +175,16 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
 
     val argumentConditions = filterArguments.map { WhereCondition.getForArgument(it, outerTable) }
 
+    val cursorRequested = relation.connectionInfo?.cursorGraphQLAliases?.isNotEmpty() ?: false
+    val endCursorRequested = relation.connectionInfo?.pageInfos?.flatMap { it.endCursorGraphQlAliases }?.isNotEmpty() ?: false
+    val hasNextPageRequested = relation.connectionInfo?.pageInfos?.flatMap { it.hasNextPageGraphQlAliases }?.isNotEmpty() ?: false
+
     val cte =
         DSL.name("cte").`as`(
             DSL.select(attributeNames)
                 .select(subSelects)
-                .select(cursor)
-                .select(DSL.count().over().`as`("count_after_cursor"))
+                .apply { if (cursorRequested || endCursorRequested) select(cursor) }
+                .apply { if (hasNextPageRequested) select(DSL.count().over().`as`("count_after_cursor")) }
                 .from(outerTable)
                 .where(argumentConditions)
                 .and(joinCondition)
