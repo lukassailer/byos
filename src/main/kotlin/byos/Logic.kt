@@ -152,7 +152,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
     val (orderByArgument, otherArguments2) = otherArguments.partition { it.name == "orderBy" }
     val (afterArgument, filterArguments) = otherArguments2.partition { it.name == "after" }
 
-    val limit = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
+    val limitValue = (paginationArgument.firstOrNull()?.value as IntValue?)?.value
 
     val providedOrderCriteria =
         (orderByArgument.firstOrNull()?.value as ObjectValue?)?.objectFields?.associate {
@@ -186,7 +186,7 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                 .and(joinCondition)
                 .and(afterCondition)
                 .orderBy(orderBy)
-                .apply { if (limit != null) limit(limit) }
+                .apply { if (limitValue != null) limit(limitValue) }
         )
 
     val totalCountSubquery =
@@ -232,10 +232,10 @@ fun resolveInternalQueryTree(relation: InternalQueryNode.Relation, joinCondition
                                 DSL.jsonObject(
                                     *pageInfo.hasNextPageGraphQlAliases.map {
                                         DSL.key(it).value(
-                                            when (limit) {
+                                            when (limitValue) {
                                                 null -> false
                                                 BigInteger.ZERO -> true
-                                                else -> DSL.max(DSL.field("count_after_cursor")).greaterThan(limit)
+                                                else -> DSL.max(DSL.field("count_after_cursor")).greaterThan(limitValue)
                                             }
                                         )
                                     }.toTypedArray(),
