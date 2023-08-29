@@ -33,7 +33,7 @@ class GraphQLService {
         val errors = Validator().validateDocument(schema, document, Locale.ENGLISH)
         if (errors.isNotEmpty()) {
             return objectMapper.writeValueAsString(
-                mapOf("errors" to errors.map { it.toSpecification() })
+                mapOf("data" to null, "errors" to errors.map { it.toSpecification() })
             )
         }
 
