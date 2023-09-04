@@ -17,7 +17,6 @@ import org.jooq.JSON
 import org.jooq.impl.DSL
 import java.io.File
 import java.math.BigInteger
-import java.util.UUID
 
 private val schemaFile = File("src/main/resources/graphql/schema.graphqls")
 private val schema: GraphQLSchema = SchemaGenerator().makeExecutableSchema(SchemaParser().parse(schemaFile), RuntimeWiring.newRuntimeWiring().build())
@@ -56,9 +55,13 @@ data class PageInfo(
 )
 
 fun buildInternalQueryTrees(queryDefinition: OperationDefinition): List<InternalQueryNode.Relation> =
-    getChildrenFromSelectionSet(queryDefinition.selectionSet).map { it as InternalQueryNode.Relation }
+    getChildrenFromSelectionSet(queryDefinition.selectionSet, Counter()).map { it as InternalQueryNode.Relation }
 
-private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQlTypeName: String = schema.queryType.name): List<InternalQueryNode> =
+private fun getChildrenFromSelectionSet(
+    selectionSet: SelectionSet,
+    counter: Counter,
+    parentGraphQlTypeName: String = schema.queryType.name
+): List<InternalQueryNode> =
     selectionSet.selections
         .filterIsInstance<Field>()
         .map { selection ->
@@ -84,9 +87,9 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                     InternalQueryNode.Relation(
                         graphQLFieldName = selection.name,
                         graphQLAlias = selection.alias ?: selection.name,
-                        sqlAlias = "${selection.name}-${UUID.randomUUID()}",
+                        sqlAlias = "${selection.name}-${counter.getIncrementingNumber()}",
                         fieldTypeInfo = nodeTypeInfo,
-                        children = getChildrenFromSelectionSet(nodeSubSelectionSet, nodeTypeInfo.graphQLTypeName),
+                        children = getChildrenFromSelectionSet(nodeSubSelectionSet, counter, nodeTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
                         connectionInfo = ConnectionInfo(
                             edgesGraphQLAlias = edgesSelection.alias ?: edgesSelection.name,
@@ -115,9 +118,9 @@ private fun getChildrenFromSelectionSet(selectionSet: SelectionSet, parentGraphQ
                     InternalQueryNode.Relation(
                         graphQLFieldName = selection.name,
                         graphQLAlias = selection.alias ?: selection.name,
-                        sqlAlias = "${selection.name}-${UUID.randomUUID()}",
+                        sqlAlias = "${selection.name}-${counter.getIncrementingNumber()}",
                         fieldTypeInfo = fieldTypeInfo,
-                        children = getChildrenFromSelectionSet(subSelectionSet, fieldTypeInfo.graphQLTypeName),
+                        children = getChildrenFromSelectionSet(subSelectionSet, counter, fieldTypeInfo.graphQLTypeName),
                         arguments = selection.arguments,
                         connectionInfo = null
                     )
