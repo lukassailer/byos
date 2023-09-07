@@ -157,7 +157,7 @@ class QueryTranspiler(
         val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it)!! }.orEmpty()
 
         val orderByFields = providedOrderCriteria.keys + (primaryKeyFields - providedOrderCriteria.keys).toSet()
-        val orderBy = orderByFields
+        val orderByFieldsWithDirection = orderByFields
             .map {
                 when (providedOrderCriteria[it]) {
                     "DESC" -> it.desc()
@@ -166,7 +166,10 @@ class QueryTranspiler(
             }
         val cursor = DSL.jsonObject(*orderByFields.toTypedArray()).cast(String::class.java).`as`("cursor")
 
-        val afterCondition = afterArgument.firstOrNull()?.let { whereCondition.getForAfterArgument(it, orderBy, outerTable) } ?: DSL.noCondition()
+        val afterCondition = afterArgument
+            .firstOrNull()
+            ?.let { whereCondition.getForAfterArgument(it, orderByFieldsWithDirection, outerTable) }
+            ?: DSL.noCondition()
 
         val argumentConditions = filterArguments.map { whereCondition.getForArgument(it, outerTable) }
 
@@ -184,7 +187,7 @@ class QueryTranspiler(
                     .where(argumentConditions)
                     .and(joinCondition)
                     .and(afterCondition)
-                    .orderBy(orderBy)
+                    .orderBy(orderByFieldsWithDirection)
                     .apply { if (limitValue != null) limit(limitValue) }
             )
 
