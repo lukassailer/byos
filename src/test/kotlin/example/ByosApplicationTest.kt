@@ -1,10 +1,10 @@
-package byos
+package example
 
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
-@SpringBootTest
+@SpringBootTest(classes = [GraphQLService::class])
 internal class ByosApplicationTest {
     @Autowired
     private lateinit var graphQLService: GraphQLService

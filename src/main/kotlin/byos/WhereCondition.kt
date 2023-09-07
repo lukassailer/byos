@@ -1,15 +1,6 @@
 package byos
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import db.jooq.generated.Tables.FILM_ACTOR
-import db.jooq.generated.Tables.FILM_CATEGORY
-import db.jooq.generated.Tables.INVENTORY
-import db.jooq.generated.tables.Actor
-import db.jooq.generated.tables.Category
-import db.jooq.generated.tables.Film
-import db.jooq.generated.tables.Inventory
-import db.jooq.generated.tables.Language
-import db.jooq.generated.tables.Store
 import graphql.language.Argument
 import graphql.language.ArrayValue
 import graphql.language.BooleanValue
@@ -27,46 +18,11 @@ import org.jooq.SortOrder
 import org.jooq.Table
 import org.jooq.impl.DSL
 
-object WhereCondition {
+class WhereCondition(private val getConditionForRelationship: (String, Table<*>, Table<*>) -> Condition?) {
     fun getForRelationship(relationshipName: String, left: Table<*>, right: Table<*>): Condition =
-        when {
-            relationshipName == "actors" && left is Film && right is Actor -> DSL.exists(
-                DSL.selectOne().from(FILM_ACTOR).where(left.FILM_ID.eq(FILM_ACTOR.FILM_ID).and(FILM_ACTOR.ACTOR_ID.eq(right.ACTOR_ID)))
-            )
+        getConditionForRelationship(relationshipName, left, right)
+            ?: error("No relationship called $relationshipName found for tables $left and $right")
 
-            relationshipName == "films" && left is Actor && right is Film -> DSL.exists(
-                DSL.selectOne().from(FILM_ACTOR).where(left.ACTOR_ID.eq(FILM_ACTOR.ACTOR_ID).and(FILM_ACTOR.FILM_ID.eq(right.FILM_ID)))
-            )
-
-            relationshipName == "stores" && left is Film && right is Store -> DSL.exists(
-                DSL.selectOne().from(INVENTORY).where(left.FILM_ID.eq(INVENTORY.FILM_ID).and(INVENTORY.STORE_ID.eq(right.STORE_ID)))
-            )
-
-            relationshipName == "films" && left is Store && right is Film -> DSL.exists(
-                DSL.selectOne().from(INVENTORY).where(left.STORE_ID.eq(INVENTORY.STORE_ID).and(INVENTORY.FILM_ID.eq(right.FILM_ID)))
-            )
-
-            relationshipName == "language" && left is Film && right is Language -> left.LANGUAGE_ID.eq(right.LANGUAGE_ID)
-            relationshipName == "original_language" && left is Film && right is Language -> left.ORIGINAL_LANGUAGE_ID.eq(right.LANGUAGE_ID)
-
-            relationshipName == "inventories" && left is Store && right is Inventory -> left.STORE_ID.eq(right.STORE_ID)
-
-            relationshipName == "film" && left is Inventory && right is Film -> left.FILM_ID.eq(right.FILM_ID)
-
-            relationshipName == "categories" && left is Film && right is Category -> DSL.exists(
-                DSL.selectOne().from(FILM_CATEGORY).where(left.FILM_ID.eq(FILM_CATEGORY.FILM_ID).and(FILM_CATEGORY.CATEGORY_ID.eq(right.CATEGORY_ID)))
-            )
-
-            relationshipName == "films" && left is Category && right is Film -> DSL.exists(
-                DSL.selectOne().from(FILM_CATEGORY).where(left.CATEGORY_ID.eq(FILM_CATEGORY.CATEGORY_ID).and(FILM_CATEGORY.FILM_ID.eq(right.FILM_ID)))
-            )
-
-            relationshipName == "parent_category" && left is Category && right is Category -> left.PARENT_CATEGORY_ID.eq(right.CATEGORY_ID)
-
-            relationshipName == "subcategories" && left is Category && right is Category -> left.CATEGORY_ID.eq(right.PARENT_CATEGORY_ID)
-
-            else -> error("No relationship called $relationshipName found for tables $left and $right")
-        }
 
     fun getForArgument(argument: Argument, table: Table<*>): Condition {
         val field = table.field(argument.name) as Field<Any>?

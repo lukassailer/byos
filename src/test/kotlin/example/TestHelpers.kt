@@ -1,4 +1,4 @@
-package byos
+package example
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.junit.jupiter.api.Assertions
