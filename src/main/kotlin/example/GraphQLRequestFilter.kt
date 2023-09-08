@@ -1,4 +1,4 @@
-package byos
+package example
 
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest

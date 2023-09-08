@@ -1,5 +1,9 @@
-package byos
+package example
 
+import byos.QueryTranspiler
+import byos.WhereCondition
+import byos.executeJooqQuery
+import byos.formatGraphQLResponse
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import graphql.GraphQL
@@ -25,6 +29,7 @@ class GraphQLService {
         private val graphQL = GraphQL.newGraphQL(schema).build()
         private val objectMapper = ObjectMapper()
         private val parser = Parser()
+        private val queryTranspiler = QueryTranspiler(WhereCondition(::getConditionForRelationship), schema)
     }
 
     fun executeGraphQLQuery(requestInfo: RequestInfo): String {
@@ -45,12 +50,12 @@ class GraphQLService {
             return objectMapper.writeValueAsString(result.toSpecification())
         }
 
-        val queryTrees = buildInternalQueryTrees(ast)
+        val queryTrees = queryTranspiler.buildInternalQueryTrees(ast)
         val results =
             queryTrees.map { tree ->
                 println(tree)
                 executeJooqQuery { ctx ->
-                    ctx.select(resolveInternalQueryTree(tree)).fetch()
+                    ctx.select(queryTranspiler.resolveInternalQueryTree(tree)).fetch()
                 }
             }
         results.map(::println)
