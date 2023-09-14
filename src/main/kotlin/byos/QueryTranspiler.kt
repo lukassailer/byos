@@ -154,7 +154,7 @@ class QueryTranspiler(
                 outerTable.field(it.name.lowercase())!! to
                         (it.value as EnumValue).name
             }.orEmpty()
-        val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it)!! }.orEmpty()
+        val primaryKeyFields = outerTable.primaryKey?.fields?.map { outerTable.field(it)!! } ?: outerTable.fields().toList()
 
         val orderByFields = providedOrderCriteria.keys + (primaryKeyFields - providedOrderCriteria.keys).toSet()
         val orderByFieldsWithDirection = orderByFields
