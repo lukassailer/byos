@@ -57,7 +57,8 @@ class GraphQLService {
                     ctx.select(queryTranspiler.resolveInternalQueryTree(tree)).fetch()
                 }
             }
-        results.map(::println)
+//        results.map(::println)
+        println("─".repeat(80))
         return results.formatGraphQLResponse()
     }
 

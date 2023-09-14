@@ -1,5 +1,6 @@
 type Query {
-    allFilms(first: Int, after: String, orderBy: OrderFilmsBy): FilmConnection!
+    allFilms: [Film!]!
+    #    allFilms(first: Int, after: String, orderBy: OrderFilmsBy): FilmConnection!
     filmById(film_id: ID!): Film
     filmByIds(first: Int, after: String, film_id: [ID!]!): FilmConnection!
     allActors: [Actor!]!
@@ -30,12 +31,6 @@ type Film {
     original_language: Language
 }
 
-input OrderFilmsBy {
-    film_id: SortDirection
-    title: SortDirection
-    release_year: SortDirection
-}
-
 type FilmConnection {
     edges: [FilmEdge!]!
     totalCount: Int!
@@ -45,6 +40,12 @@ type FilmConnection {
 type FilmEdge {
     node: Film!
     cursor: String!
+}
+
+input OrderFilmsBy {
+    film_id: SortDirection
+    title: SortDirection
+    release_year: SortDirection
 }
 
 type Actor {
@@ -58,6 +59,24 @@ type Store {
     store_id: ID!
     films(first: Int, after: String, orderBy: OrderFilmsBy): FilmConnection!
     inventories(first: Int, after: String): InventoryConnection!
+    inventoriesWithStock(first: Int, after: String): InventoryWithStockConnection!
+}
+
+type InventoryWithStockConnection {
+    edges: [InventoryWithStockEdge!]!
+    totalCount: Int!
+    pageInfo: PageInfo!
+}
+
+type InventoryWithStockEdge {
+    node: InventoryWithStock!
+    cursor: String!
+    stock: Int!
+}
+
+type InventoryWithStock {
+    film: Film!
+    stock: Int!
 }
 
 type StoreConnection {

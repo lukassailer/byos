@@ -5,6 +5,7 @@ import db.jooq.generated.tables.Actor
 import db.jooq.generated.tables.Category
 import db.jooq.generated.tables.Film
 import db.jooq.generated.tables.Inventory
+import db.jooq.generated.tables.Inventorywithstock
 import db.jooq.generated.tables.Language
 import db.jooq.generated.tables.Store
 import org.jooq.Condition
@@ -49,6 +50,10 @@ fun getConditionForRelationship(relationshipName: String, left: Table<*>, right:
         relationshipName == "parent_category" && left is Category && right is Category -> left.PARENT_CATEGORY_ID.eq(right.CATEGORY_ID)
 
         relationshipName == "subcategories" && left is Category && right is Category -> left.CATEGORY_ID.eq(right.PARENT_CATEGORY_ID)
+
+        relationshipName == "inventoriesWithStock" && left is Store && right is Inventorywithstock -> left.STORE_ID.eq(right.STORE_ID)
+
+        relationshipName == "film" && left is Inventorywithstock && right is Film -> left.FILM_ID.eq(right.FILM_ID)
 
         else -> null
     }
