@@ -6,7 +6,7 @@ type Query {
     actorById(actor_id: ID!): Actor
     allCategories(first: Int, after: String): CategoryConnection!
     allStores(first: Int, after: String): StoreConnection!
-    filmsByYear(first: Int, after: String, release_year: Int!): FilmConnection!
+    filmsByYear(first: Int, after: String, release_year: Int): FilmConnection!
 }
 
 enum SortDirection {
