@@ -53,7 +53,6 @@ class GraphQLService {
         val queryTrees = queryTranspiler.buildInternalQueryTrees(ast)
         val results =
             queryTrees.map { tree ->
-                println(tree)
                 executeJooqQuery { ctx ->
                     ctx.select(queryTranspiler.resolveInternalQueryTree(tree)).fetch()
                 }
