@@ -98,8 +98,6 @@ type Language {
 type Inventory {
     inventory_id: ID!
     film: Film!
-    # example where a intermediate type should be visible to the client
-    # stock: Int!
 }
 
 type InventoryConnection {
