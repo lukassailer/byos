@@ -6,6 +6,7 @@ import org.jooq.ExecuteListener
 import org.jooq.Formattable
 import org.jooq.JSONFormat
 import org.jooq.SQLDialect
+import org.jooq.conf.RenderKeywordCase.UPPER
 import org.jooq.conf.Settings
 import org.jooq.impl.DSL
 import org.jooq.impl.DefaultConfiguration
@@ -29,7 +30,9 @@ class PrettyPrinter : ExecuteListener {
     override fun executeStart(ctx: ExecuteContext) {
         val create = DSL.using(
             ctx.dialect(),
-            Settings().withRenderFormatted(true)
+            Settings()
+                .withRenderFormatted(true)
+                .withRenderKeywordCase(UPPER)
         )
 
         if (ctx.query() != null) {
