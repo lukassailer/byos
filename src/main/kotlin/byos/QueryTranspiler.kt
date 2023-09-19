@@ -28,6 +28,25 @@ sealed class InternalQueryNode(val graphQLFieldName: String, val graphQLAlias: S
     class Attribute(graphQLFieldName: String, graphQLAlias: String) : InternalQueryNode(graphQLFieldName, graphQLAlias)
 }
 
+fun prettyPrintTree(node: InternalQueryNode, indent: Int = 0, isLast: Boolean = true): String {
+    val prefix = " ".repeat(indent) + if (isLast) "└─" else "├─"
+
+    return when (node) {
+        is InternalQueryNode.Relation -> {
+            val nodeStr = "Relation: ${node.graphQLAlias} (${node.fieldTypeInfo.relationName})"
+            val nodeStrRed = "\u001B[31m$nodeStr\u001B[0m"
+            val childrenStr = node.children.joinToString("\n") {
+                prettyPrintTree(it, indent + 2, it == node.children.last())
+            }
+            "$prefix$nodeStrRed\n$childrenStr"
+        }
+
+        is InternalQueryNode.Attribute -> {
+            "${prefix}Attribute: ${node.graphQLAlias}"
+        }
+    }
+}
+
 data class FieldTypeInfo(val graphQLTypeName: String, val isList: Boolean) {
     val relationName = graphQLTypeName.lowercase()
 }

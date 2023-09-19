@@ -4,6 +4,7 @@ import byos.QueryTranspiler
 import byos.WhereCondition
 import byos.executeJooqQuery
 import byos.formatGraphQLResponse
+import byos.prettyPrintTree
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import graphql.GraphQL
@@ -53,6 +54,9 @@ class GraphQLService {
         val queryTrees = queryTranspiler.buildInternalQueryTrees(ast)
         val results =
             queryTrees.map { tree ->
+                println("─".repeat(80))
+                println(prettyPrintTree(tree))
+                println("─".repeat(80))
                 executeJooqQuery { ctx ->
                     ctx.select(queryTranspiler.resolveInternalQueryTree(tree)).fetch()
                 }

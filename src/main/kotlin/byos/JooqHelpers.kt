@@ -18,6 +18,9 @@ private const val password = ""
 private const val url = "jdbc:postgresql://localhost:5432/sakila"
 
 fun <T> executeJooqQuery(withDsl: (dsl: DSLContext) -> T): T {
+    System.setProperty("org.jooq.no-tips", "true");
+    System.setProperty("org.jooq.no-logo", "true");
+
     val connection = DriverManager.getConnection(url, userName, password)
     val configuration = DefaultConfiguration().set(connection).set(SQLDialect.POSTGRES)
     configuration.set(DefaultExecuteListenerProvider(PrettyPrinter()))
