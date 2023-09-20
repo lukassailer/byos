@@ -21,7 +21,7 @@ import org.jooq.impl.DSL
 class WhereCondition(private val getConditionForRelationship: (String, Table<*>, Table<*>) -> Condition?) {
     fun getForRelationship(relationshipName: String, left: Table<*>, right: Table<*>): Condition =
         getConditionForRelationship(relationshipName, left, right)
-            ?: error("No relationship called $relationshipName found for tables $left and $right")
+            ?: error("No relationship called $relationshipName found for tables ${left.javaClass.simpleName} and ${right.javaClass.simpleName}")
 
 
     fun getForArgument(argument: Argument, table: Table<*>): Condition {
