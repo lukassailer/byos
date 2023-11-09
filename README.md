@@ -1,6 +1,6 @@
 # Bring Your Own Schema (BYOS)
 
-**Bring Your Own Schema (BYOS)** is an implementation based on the concepts presented in my thesis, focusing on transpiling GraphQL queries to SQL.
+**Bring Your Own Schema (BYOS)** is an implementation based on the concepts presented in [my thesis](https://db.cs.uni-tuebingen.de/theses/2023/lukas-sailer/lukas-sailer-2023.pdf), focusing on transpiling GraphQL queries to SQL.
 This repository provides a practical example of how to bring your own GraphQL schema and use it to generate efficient SQL queries.
 
 **This is very much a prototype for now!**
@@ -39,6 +39,6 @@ After that you can query the GraphQL endpoint at `http://localhost:8080` or open
 
 ---
 
-For more details about the approach and implementation, refer to the associated thesis.
+For more details about the approach and implementation, refer to the [associated thesis](https://db.cs.uni-tuebingen.de/theses/2023/lukas-sailer/lukas-sailer-2023.pdf).
 
 Happy querying and transpiling!
